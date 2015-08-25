@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/ /basicdrawing">
+        <file>images/brick.png</file>
+        <file>images/qt-logo.png</file>
+    </qresource>
+</RCC>
