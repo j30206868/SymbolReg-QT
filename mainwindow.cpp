@@ -42,30 +42,54 @@
 #include "mainwindow.h"
 
 #include <QtWidgets>
+#include "sstream"
+#include "iostream"
 
 const int IdRole = Qt::UserRole;
 
+void addSelectBoxItemsByFileName(QComboBox *combox, QString fname){
+    QString sampleDirPath = fname;
+    QDir sampleDir(sampleDirPath);
+
+    int fileCount = 0;
+    //先計算檔案數量
+    foreach(QFileInfo item, sampleDir.entryInfoList() )
+    {
+        if(item.isDir()){
+
+        }else if(item.isFile()){
+            fileCount++;
+        }
+    }
+    //依序加入檔案 檔名照(1~filecount.txt)排序
+    for(int i=1 ; i<=fileCount ; i++){
+        std::stringstream sstm;
+        sstm << i << ".txt";
+        QString orderedFname = sstm.str().c_str();
+        foreach(QFileInfo item, sampleDir.entryInfoList() )
+        {
+            if( orderedFname.compare(item.fileName()) == 0 ){
+                QString filename = sampleDirPath + item.fileName();
+                combox->addItem(filename, filename);
+                break;
+            }
+        }
+    }
+}
+
 Window::Window()
 {
+    isReadingMPU6050 = false;
+
     renderArea = new RenderArea;
 
-    QDir myDir("/home/some/location");
-    QStringList filesList = myDir.entryList("*");
-    QList::iterator it = filesList.iterator;
-    while (it.hasNext()) {
-        std::cout << it.next() << std::endl;
-    }
-
     tempSelectBox = new QComboBox;
-    tempSelectBox->addItem(tr("Symbol/1.txt"), "Symbol/1.txt");
-    tempSelectBox->addItem(tr("Symbol/2.txt"), "Symbol/2.txt");
-    tempSelectBox->addItem(tr("Symbol/21.txt"), "Symbol/21.txt");
+    addSelectBoxItemsByFileName(tempSelectBox, tr("Symbol/"));
     tempLabel = new QLabel(tr("&Temp:"));
     tempLabel->setBuddy(tempSelectBox);
 
     sampleSelectBox = new QComboBox;
-    sampleSelectBox->addItem(tr("Symbol/1.txt"), "Symbol/1.txt");
-    sampleSelectBox->addItem(tr("Symbol/2.txt"), "Symbol/2.txt");
+    addSelectBoxItemsByFileName(sampleSelectBox, tr("input/"));
     sampleLabel = new QLabel(tr("&Sample:"));
     sampleLabel->setBuddy(sampleSelectBox);
 
@@ -75,6 +99,19 @@ Window::Window()
 
     penWidthLabel = new QLabel(tr("Pen &Width:"));
     penWidthLabel->setBuddy(penWidthSpinBox);
+
+    strokeSpinBox = new QSpinBox;
+    strokeSpinBox->setRange(0, 1);
+    strokeLable = new QLabel(tr("Last Stroke:"));
+    strokeLable->setBuddy(strokeSpinBox);
+    connect(strokeSpinBox, SIGNAL(valueChanged(int)),
+            this, SLOT(lastStrokeChanged()));
+    renderArea->setLastStrokeSpinBox(strokeSpinBox);
+
+
+    readDataBtn = new QPushButton(tr("開始讀取MPU6050數據"), this);
+    connect(readDataBtn, SIGNAL(released()),
+            this, SLOT(toggleMPU6050Reading()));
 
     penStyleComboBox = new QComboBox;
     penStyleComboBox->addItem(tr("Solid"), static_cast<int>(Qt::SolidLine));
@@ -95,41 +132,6 @@ Window::Window()
     penCapLabel = new QLabel(tr("Pen &Cap:"));
     penCapLabel->setBuddy(penCapComboBox);
 
-    penJoinComboBox = new QComboBox;
-    penJoinComboBox->addItem(tr("Miter"), Qt::MiterJoin);
-    penJoinComboBox->addItem(tr("Bevel"), Qt::BevelJoin);
-    penJoinComboBox->addItem(tr("Round"), Qt::RoundJoin);
-
-    penJoinLabel = new QLabel(tr("Pen &Join:"));
-    penJoinLabel->setBuddy(penJoinComboBox);
-
-    brushStyleComboBox = new QComboBox;
-    brushStyleComboBox->addItem(tr("Linear Gradient"),
-            static_cast<int>(Qt::LinearGradientPattern));
-    brushStyleComboBox->addItem(tr("Radial Gradient"),
-            static_cast<int>(Qt::RadialGradientPattern));
-    brushStyleComboBox->addItem(tr("Conical Gradient"),
-            static_cast<int>(Qt::ConicalGradientPattern));
-    brushStyleComboBox->addItem(tr("Texture"), static_cast<int>(Qt::TexturePattern));
-    brushStyleComboBox->addItem(tr("Solid"), static_cast<int>(Qt::SolidPattern));
-    brushStyleComboBox->addItem(tr("Horizontal"), static_cast<int>(Qt::HorPattern));
-    brushStyleComboBox->addItem(tr("Vertical"), static_cast<int>(Qt::VerPattern));
-    brushStyleComboBox->addItem(tr("Cross"), static_cast<int>(Qt::CrossPattern));
-    brushStyleComboBox->addItem(tr("Backward Diagonal"), static_cast<int>(Qt::BDiagPattern));
-    brushStyleComboBox->addItem(tr("Forward Diagonal"), static_cast<int>(Qt::FDiagPattern));
-    brushStyleComboBox->addItem(tr("Diagonal Cross"), static_cast<int>(Qt::DiagCrossPattern));
-    brushStyleComboBox->addItem(tr("Dense 1"), static_cast<int>(Qt::Dense1Pattern));
-    brushStyleComboBox->addItem(tr("Dense 2"), static_cast<int>(Qt::Dense2Pattern));
-    brushStyleComboBox->addItem(tr("Dense 3"), static_cast<int>(Qt::Dense3Pattern));
-    brushStyleComboBox->addItem(tr("Dense 4"), static_cast<int>(Qt::Dense4Pattern));
-    brushStyleComboBox->addItem(tr("Dense 5"), static_cast<int>(Qt::Dense5Pattern));
-    brushStyleComboBox->addItem(tr("Dense 6"), static_cast<int>(Qt::Dense6Pattern));
-    brushStyleComboBox->addItem(tr("Dense 7"), static_cast<int>(Qt::Dense7Pattern));
-    brushStyleComboBox->addItem(tr("None"), static_cast<int>(Qt::NoBrush));
-
-    brushStyleLabel = new QLabel(tr("&Brush:"));
-    brushStyleLabel->setBuddy(brushStyleComboBox);
-
     otherOptionsLabel = new QLabel(tr("Options:"));
     antialiasingCheckBox = new QCheckBox(tr("&Antialiasing"));
     transformationsCheckBox = new QCheckBox(tr("&Transformations"));
@@ -139,16 +141,15 @@ Window::Window()
     connect(sampleSelectBox, SIGNAL(activated(int)),
             this, SLOT(sampleChanged()));
 
+
+
     connect(penWidthSpinBox, SIGNAL(valueChanged(int)),
             this, SLOT(penChanged()));
     connect(penStyleComboBox, SIGNAL(activated(int)),
             this, SLOT(penChanged()));
     connect(penCapComboBox, SIGNAL(activated(int)),
             this, SLOT(penChanged()));
-    connect(penJoinComboBox, SIGNAL(activated(int)),
-            this, SLOT(penChanged()));
-    connect(brushStyleComboBox, SIGNAL(activated(int)),
-            this, SLOT(brushChanged()));
+
     connect(antialiasingCheckBox, SIGNAL(toggled(bool)),
             renderArea, SLOT(setAntialiased(bool)));
     connect(transformationsCheckBox, SIGNAL(toggled(bool)),
@@ -166,24 +167,48 @@ Window::Window()
 
     mainLayout->addWidget(penWidthLabel, 4, 0, Qt::AlignRight);
     mainLayout->addWidget(penWidthSpinBox, 4, 1);
-    mainLayout->addWidget(penStyleLabel, 5, 0, Qt::AlignRight);
-    mainLayout->addWidget(penStyleComboBox, 5, 1);
+    mainLayout->addWidget(penStyleLabel, 3, 0, Qt::AlignRight);
+    mainLayout->addWidget(penStyleComboBox, 3, 1);
     mainLayout->addWidget(penCapLabel, 3, 2, Qt::AlignRight);
     mainLayout->addWidget(penCapComboBox, 3, 3);
-    mainLayout->addWidget(penJoinLabel, 3, 0, Qt::AlignRight);
-    mainLayout->addWidget(penJoinComboBox, 3, 1);
-    mainLayout->addWidget(brushStyleLabel, 4, 2, Qt::AlignRight);
-    mainLayout->addWidget(brushStyleComboBox, 4, 3);
-    mainLayout->addWidget(otherOptionsLabel, 6, 0, Qt::AlignRight);
-    mainLayout->addWidget(antialiasingCheckBox, 6, 1, 1, 1, Qt::AlignRight);
-    mainLayout->addWidget(transformationsCheckBox, 6, 2, 1, 2, Qt::AlignRight);
+
+    mainLayout->addWidget(strokeLable, 4, 2, Qt::AlignRight);
+    mainLayout->addWidget(strokeSpinBox, 4, 3);
+
+    mainLayout->addWidget(otherOptionsLabel, 5, 0, Qt::AlignRight);
+    mainLayout->addWidget(antialiasingCheckBox, 5, 1, 1, 1, Qt::AlignRight);
+    mainLayout->addWidget(transformationsCheckBox, 5, 2, 1, 2, Qt::AlignRight);
+
+    mainLayout->addWidget(readDataBtn, 6, 3, Qt::AlignRight);
+
     setLayout(mainLayout);
 
+    tempSelectBox->setCurrentIndex(10);
+    tempChanged();
+    sampleSelectBox->setCurrentIndex(2);
+    sampleChanged();
+
     penChanged();
-    brushChanged();
     antialiasingCheckBox->setChecked(true);
 
     setWindowTitle(tr("Basic Drawing"));
+}
+
+void Window::setRenderAreaLastStrokeBox(QSpinBox *spinBoxObj){
+    renderArea->setLastStrokeSpinBox(spinBoxObj);
+}
+
+void Window::lastStrokeChanged(){
+    renderArea->setLastStroke( strokeSpinBox->value() );
+}
+
+void Window::toggleMPU6050Reading(){
+    isReadingMPU6050 = !isReadingMPU6050;
+    if(isReadingMPU6050){
+
+    }else{
+
+    }
 }
 
 void Window::tempChanged()
@@ -207,36 +232,6 @@ void Window::penChanged()
             penStyleComboBox->currentIndex(), IdRole).toInt());
     Qt::PenCapStyle cap = Qt::PenCapStyle(penCapComboBox->itemData(
             penCapComboBox->currentIndex(), IdRole).toInt());
-    Qt::PenJoinStyle join = Qt::PenJoinStyle(penJoinComboBox->itemData(
-            penJoinComboBox->currentIndex(), IdRole).toInt());
 
-    renderArea->setPen(QPen(Qt::blue, width, style, cap, join));
-}
-
-void Window::brushChanged()
-{
-    Qt::BrushStyle style = Qt::BrushStyle(brushStyleComboBox->itemData(
-            brushStyleComboBox->currentIndex(), IdRole).toInt());
-
-    if (style == Qt::LinearGradientPattern) {
-        QLinearGradient linearGradient(0, 0, 100, 100);
-        linearGradient.setColorAt(0.0, Qt::white);
-        linearGradient.setColorAt(0.2, Qt::green);
-        linearGradient.setColorAt(1.0, Qt::black);
-        renderArea->setBrush(linearGradient);
-    } else if (style == Qt::RadialGradientPattern) {
-        QRadialGradient radialGradient(50, 50, 50, 70, 70);
-        radialGradient.setColorAt(0.0, Qt::white);
-        radialGradient.setColorAt(0.2, Qt::green);
-        radialGradient.setColorAt(1.0, Qt::black);
-        renderArea->setBrush(radialGradient);
-    } else if (style == Qt::ConicalGradientPattern) {
-        QConicalGradient conicalGradient(50, 50, 150);
-        conicalGradient.setColorAt(0.0, Qt::white);
-        conicalGradient.setColorAt(0.2, Qt::green);
-        conicalGradient.setColorAt(1.0, Qt::black);
-        renderArea->setBrush(conicalGradient);
-    } else {
-        renderArea->setBrush(QBrush(Qt::green, style));
-    }
+    renderArea->setPen(QPen(Qt::blue, width, style, cap));
 }

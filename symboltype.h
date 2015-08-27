@@ -9,10 +9,6 @@ struct ctData{//continuous trajectory data with count
     int *sP;
     int *eP;
     int length;
-
-    int *shwC;
-    int *unShwC;
-    int totalC;
 };
 
 struct dualCTData{
@@ -38,7 +34,9 @@ struct trajData{
 };
 
 //宣告ctdata內的記憶體
+void freeCT(ctData data);
 ctData getNewCTData(int newLen);
+double* getABSMeanOfCTData(ctData data);
 
 //trajData處理
 int getLevel( int g );

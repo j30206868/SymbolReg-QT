@@ -42,8 +42,12 @@
 
 #include "symbolreg.h"
 
-#include "iostream"
+#include <string>
+#include <iostream>
 #include "math.h"
+#include <sstream>
+#include <iomanip>
+#include <stdio.h>
 
 #include "mousectrl.h"
 
@@ -56,26 +60,35 @@ RenderArea::RenderArea(QWidget *parent)
     antialiased = false;
     transformed = false;
 
-    //this->setFixedSize(QSize(900, 500));
-
-    isCompared = false;
-    tempPath = "Symbol/19.txt";
-    samplePath = "Symbol/2.txt";
+    isCompared = true;//一開始什麼都沒有不要比較
+    tempPath = "";
+    samplePath = "";
+    lastStroke = 0;
+    strokeWidth = 1;
 
     //this->setFixedSize(200,250);
 
     setBackgroundRole(QPalette::Base);
     setAutoFillBackground(true);
+    bestMatchResult;
 }
 
 QSize RenderArea::minimumSizeHint() const
 {
-    return QSize(100, 250);
+    return QSize(100, 350);
 }
 
 QSize RenderArea::sizeHint() const
 {
-    return QSize(600, 250);
+    return QSize(550, 350);
+}
+
+void RenderArea::setLastStroke(int value){
+    lastStroke = value;
+    update();
+}
+void RenderArea::setLastStrokeSpinBox(QSpinBox *obj){
+    spinBoxObj = obj;
 }
 
 void RenderArea::setShape(Shape shape)
@@ -87,6 +100,7 @@ void RenderArea::setShape(Shape shape)
 void RenderArea::setPen(const QPen &pen)
 {
     this->pen = pen;
+    strokeWidth = pen.width();
     update();
 }
 
@@ -128,17 +142,28 @@ void RenderArea::changeSamplePath(QString str){
     }
 }
 
+void RenderArea::setPenColorByChar(int i, char c)
+{
+    if(i == lastStroke){
+        //pen.setColor(QColor(0,0,255,255));
+        pen.setWidth(strokeWidth + 5);\
+    }else{
+        pen.setWidth(strokeWidth);
+    }
+    if(c == 'g'){
+        pen.setColor(QColor(0,0,0,255));
+    }else if(c == 'r'){
+        pen.setColor(QColor(255,0,0,255));
+    }
+}
+
 void RenderArea::drawSymbolWithSymLine(SymLine *lines, int lineNum, int offsetX, int offsetY, double scaleX, double scaleY){
     QPainter symPainter(this);
     symPainter.setBrush(brush);
 
     //畫出來
     for(int i=0; i<lineNum ; i++){
-        if(lines[i].color == 'g'){
-            pen.setColor(QColor(0,255,0,255));
-        }else if(lines[i].color == 'r'){
-            pen.setColor(QColor(255,0,0,255));
-        }
+        setPenColorByChar(i, lines[i].color);
         symPainter.setPen(pen);
 
         QPoint p1 = QPoint(lines[i].x1, lines[i].y1);
@@ -164,6 +189,7 @@ void updateBtmRight(int &BRValue, int input){
         BRValue = input;
     }
 }
+
 void RenderArea::transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, int h, int &offsetX, int &offsetY, double &scaleX, double &scaleY){
     //取得將symbol位移到x1, y1為(0,0) ; x2,y2為(w,h) 時
     //  所需使用的offset跟scale參數值
@@ -192,18 +218,82 @@ void RenderArea::transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, 
     scaleX = (w/ow);
     scaleY = (h/oh);
 
+    //若是scaleX跟scaleY各自使用, 則就不是XY同時等比例縮放了, 所以選擇小的來用
+    scaleX = std::min(scaleX, scaleY);
+    scaleY = std::min(scaleX, scaleY);
+
     //如果scale變大或變小, offset也要跟著縮放(因為他縮放的規則是座標直接乘以scale的數值)
     offsetX = (0 - left) * scaleX;
     offsetY = (0 - top)  * scaleY;
 }
 
-void RenderArea::drawMatchedResult(dualCTData bestMatch, int boxW, int boxH, int sym1X, int sym1Y, int sym2X, int sym2Y ){
+void RenderArea::drawDetailBoxBesideComparedFigure(dualCTData bestMatch, SymLine *lines, double result, QRect rect){
+    //畫結果
+    QPainter symPainter(this);
+    symPainter.setBrush(brush);
+    //symPainter.setPen(pen);
+    std::stringstream sstm;
+
+    //框框的位置資訊
+    int x1, y1, x2, y2;
+    rect.getCoords(&x1,&y1,&x2,&y2);
+
+    int fontSize   = 15;
+    int lineIndent = 3;
+
+    QFont font("標楷體");
+    font.setBold(true);
+    font.setPixelSize(fontSize);
+    symPainter.setFont(font);
+    if(result >= 0.6){
+        pen.setColor(QColor(0,255,0,255));
+    }else if(result < 0.3){
+        pen.setColor(QColor(255,0,0,255));
+    }else{
+        pen.setColor(QColor(0,0,0,255));
+    }
+    sstm << "相似度: " << result << std::endl;
+
+    symPainter.setPen(pen);
+    symPainter.drawText(x1, y1, sstm.str().c_str());
+    for(int i=0 ; i<bestMatch.A.length ; i++){
+        sstm.str("");
+
+        char s[27];
+        sprintf(s, "%2d| %6d %6d(%2d)", i, bestMatch.A.level[i][0], bestMatch.A.level[i][2], ctDataMergeV(bestMatch.A.level[i][0], bestMatch.A.level[i][2]));
+        sstm << s << " | ";
+        sprintf(s, "%6d %6d(%2d)", bestMatch.B.level[i][0], bestMatch.B.level[i][2], ctDataMergeV(bestMatch.B.level[i][0], bestMatch.B.level[i][2]));
+        sstm << s << "\n";
+
+        setPenColorByChar(i, lines[i].color);
+        symPainter.setPen(pen);
+        symPainter.translate(0, fontSize + lineIndent);
+        fontSize = 13;
+        font.setPixelSize(fontSize);
+        if(i == lastStroke){
+            font.setUnderline(true);
+            font.setBold(true);
+            symPainter.setFont(font);
+        }else{
+            font.setUnderline(false);
+            font.setBold(false);
+            symPainter.setFont(font);
+        }
+        symPainter.drawText(QPoint(x1, y1), sstm.str().c_str());
+    }
+
+    //一次直接在框框中把所有字畫出來(但就必須統一顏色)
+    //symPainter.drawText(rect, Qt::AlignLeft, sstm.str().c_str());
+}
+
+void RenderArea::drawMatchedResult(dualCTData bestMatch, double result, int boxW, int boxH, int sym1X, int sym1Y, int sym2X, int sym2Y ){
     MouseCtrl mc1 = MouseCtrl();
     MouseCtrl mc2 = MouseCtrl();
 
-    //移動幅度
-    mc1.gyroSensitivity = 30;
-    mc2.gyroSensitivity = 30;
+    //移動幅度(如果太小 很多筆畫可能會被四捨五入掉 導致完全不動)
+    //值設大一點 因為有boxlimit所以不影響
+    mc1.gyroSensitivity = 250;
+    mc2.gyroSensitivity = 250;
 
     //畫擷取後特徵值的比較
     int dx1 = 0, dy1 = 0;
@@ -215,11 +305,13 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, int boxW, int boxH, int
     double velocity2[3] = {0, 0, 0};
     int AcclZeroC2[3] = {0, 0, 0};
 
-    SymLine sym1Lines[bestMatch.A.length];
-    SymLine sym2Lines[bestMatch.B.length];
+    int lineNum = bestMatch.A.length;
+
+    SymLine sym1Lines[lineNum];
+    SymLine sym2Lines[lineNum];
 
     //由於不的match的地方都補0了 所以bestMatch A跟B長度是一樣的
-    for(int i=0; i<bestMatch.A.length ; i++){
+    for(int i=0; i<lineNum ; i++){
         //借用移動滑鼠的object 但不真的移動滑鼠, 僅僅是用來算出各筆畫結束時的座標, 加速度不用設0
         int accl[3] = {0,0,0};
         bool isMoved1 = mc1.moveCursor(accl, bestMatch.A.level[i], velocity1, AcclZeroC1, 10, false);
@@ -254,8 +346,6 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, int boxW, int boxH, int
         sym2Lines[i].y2 = dy2;
     }
 
-    int lineNum = bestMatch.A.length;
-
     if( lineNum > 0)
     {//至少有一個筆才需要畫
         int    offsetX;
@@ -263,10 +353,23 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, int boxW, int boxH, int
         double scaleX;
         double scaleY;
         transformSymbolIntoBoxSize(sym1Lines, lineNum, boxW, boxH, offsetX, offsetY, scaleX, scaleY);
-        drawSymbolWithSymLine(sym1Lines, bestMatch.A.length, sym1X + offsetX, sym1Y + offsetY, scaleX, scaleY);
+        drawSymbolWithSymLine(sym1Lines, lineNum, sym1X + offsetX, sym1Y + offsetY, scaleX, scaleY);
 
         transformSymbolIntoBoxSize(sym2Lines, lineNum, boxW, boxH, offsetX, offsetY, scaleX, scaleY);
-        drawSymbolWithSymLine(sym2Lines, bestMatch.B.length, sym2X + offsetX, sym2Y + offsetY, scaleX, scaleY);
+        drawSymbolWithSymLine(sym2Lines, lineNum, sym2X + offsetX, sym2Y + offsetY, scaleX, scaleY);
+
+        int figureRight = sym1X + offsetX + boxW;
+        int figureTop   = sym1Y;
+        int detailBoxLeftPadding = 25;
+        int dBoxX1 = figureRight + detailBoxLeftPadding;
+        int dBoxY1 = figureTop;
+        int dBoxW = 150;
+        int dBoxH = 320;
+        int dBoxX2 = dBoxX1 + dBoxW;
+        int dBoxY2 = dBoxY1 + dBoxH;
+        QRect rect(dBoxX1, dBoxY1, dBoxX2, dBoxY2);
+        //給哪條line其實不影響, 因為兩條的color設定基本上是一樣的, 而drawDetailBoxBesideComparedFigure只會用到color
+        drawDetailBoxBesideComparedFigure(bestMatch, sym1Lines, result, rect);
     }
 }
 
@@ -276,18 +379,36 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
     if(isCompared == false){
         trajData *temp   = readTrajDataFromFile(tempPath  .toStdString());
         trajData *sample = readTrajDataFromFile(samplePath.toStdString());
-        double result = 0;
-        dualCTData bestMatch = compareTwoSymbol(temp, sample, result, true);
+        result = 0;
+        bestMatchResult = compareTwoSymbol(temp, sample);
 
-        //起始座標
-        int sym1X = 20; int sym1Y = 20;
-        int sym2X = 20; int sym2Y = 130;
-        int w = 90, h = 90;
+        //印出整個對齊結果
+        result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, true);
+        std::cout << std::endl;
 
-        drawMatchedResult(bestMatch, w, h, sym1X, sym1Y, sym2X, sym2Y);
+        //更新筆數總數
+        lastStroke = bestMatchResult.A.length-1;
+        spinBoxObj->setRange(0, lastStroke);
+        spinBoxObj->setValue(lastStroke);
 
         isCompared = true;
     }
+
+    int w = 150, h = 150;
+    //起始座標
+    int figuresUpDownPadding = 20;
+    int sym1X = 20; int sym1Y = 20;
+    int sym2X = 20; int sym2Y = sym1Y + h + figuresUpDownPadding;
+
+    QPainter symPainter(this);
+    pen.setColor(QColor(155,155,155,155));
+    pen.setWidth(0);
+    symPainter.setPen(pen);
+
+    symPainter.drawRect(sym1X-5, sym1Y-5, w+10, h+10);
+    symPainter.drawRect(sym2X-5, sym2Y-5, w+10, h+10);
+
+    drawMatchedResult(bestMatchResult, result, w, h, sym1X, sym1Y, sym2X, sym2Y);
 
     /*painter.setRenderHint(QPainter::Antialiasing, false);
     painter.setPen(palette().dark().color());

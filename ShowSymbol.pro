@@ -20,7 +20,8 @@ SOURCES += main.cpp\
     commonfunc.cpp \
     symbolreg.cpp \
     mousectrl.cpp \
-    cursor.cpp
+    cursor.cpp \
+    comreader.cpp
 
 HEADERS  += mainwindow.h \
     renderarea.h \
@@ -28,7 +29,8 @@ HEADERS  += mainwindow.h \
     commonfunc.h \
     symbolreg.h \
     mousectrl.h \
-    cursor.h
+    cursor.h \
+    comreader.h
 
 FORMS    += mainwindow.ui
 

@@ -47,6 +47,7 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QSpinBox;
+class QPushButton;
 
 class RenderArea;
 
@@ -59,10 +60,13 @@ public:
 
 private slots:
     void penChanged();
-    void brushChanged();
 
     void tempChanged();
     void sampleChanged();
+    void toggleMPU6050Reading();
+
+    void lastStrokeChanged();
+    void setRenderAreaLastStrokeBox(QSpinBox *spinBoxObj);
 
 private:
     RenderArea *renderArea;
@@ -73,20 +77,23 @@ private:
     QLabel *penWidthLabel;
     QLabel *penStyleLabel;
     QLabel *penCapLabel;
-    QLabel *penJoinLabel;
-    QLabel *brushStyleLabel;
     QLabel *otherOptionsLabel;
 
     QComboBox *tempSelectBox;
     QComboBox *sampleSelectBox;
 
+    QLabel *strokeLable;
+    QSpinBox *strokeSpinBox;
+
     QSpinBox *penWidthSpinBox;
     QComboBox *penStyleComboBox;
     QComboBox *penCapComboBox;
-    QComboBox *penJoinComboBox;
-    QComboBox *brushStyleComboBox;
     QCheckBox *antialiasingCheckBox;
     QCheckBox *transformationsCheckBox;
+
+    QPushButton *readDataBtn;
+
+    bool isReadingMPU6050;
 };
 
 #endif // WINDOW_H

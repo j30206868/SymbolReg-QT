@@ -12,15 +12,40 @@ using namespace std;
 
 dualCTData compareTwoSymbol(trajData *temp, trajData *sample, double &similarity, bool printResult);
 
+void freeCT(ctData data){
+    delete[] data.count;
+    for(int i=0 ; i<data.length ; i++){
+        delete[] data.level[i];
+    }
+    delete[] data.level;
+}
 ctData getNewCTData(int newLen){
     ctData newTemp;
     newTemp.length = newLen;
     newTemp.level = new int*[newLen];
+    for(int i=0 ; i<newLen ; i++){
+       newTemp.level[i] = new int[3];
+    }
     newTemp.count = new int[newLen];
-    newTemp.shwC = new int[newLen];
-    newTemp.unShwC = new int[newLen];
-    newTemp.totalC = newLen;
     return newTemp;
+}
+
+double* getABSMeanOfCTData(ctData data){
+    double *mean = new double[3];
+    mean[0] = 0;
+    mean[1] = 0;
+    mean[2] = 0;
+    if(data.length > 0){
+        for(int i=0 ; i<data.length ; i++){
+            mean[0] += abs(data.level[i][0]);
+            mean[1] += abs(data.level[i][1]);
+            mean[2] += abs(data.level[i][2]);
+        }
+        mean[0] = mean[0]/data.length;
+        mean[1] = mean[1]/data.length;
+        mean[2] = mean[2]/data.length;
+    }
+    return mean;
 }
 
 //trajData處理

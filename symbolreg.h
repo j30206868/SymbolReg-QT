@@ -68,8 +68,13 @@ double meanOfABSIntA(intArray A);
 double unMatchedPercent(intArray FA, intArray SA);
 
 double showBestMatchResult(ctData Temp, ctData Sample, bool printResult = true);
+//刪除沒得merge 但X跟Z軸的值卻又都小於平均值超過th倍的特徵
+ctData removeNoisyFeature(ctData data, int th);
+//試用
+ctData* postProcees(intArray tempIntA, intArray sampleIntA, ctData temp, ctData sample, intArray cList);
+//試用
 
-dualCTData compareTwoSymbol(trajData *temp, trajData *sample, double &similarity, bool printResult);
+dualCTData compareTwoSymbol(trajData *temp, trajData *sample);
 
 //皆有數字為0
 //-1 => (x1,y1)為empty

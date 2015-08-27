@@ -20,7 +20,7 @@ Cursor::Cursor(){
     cX = nowX;
     cY = nowY;
 
-    SetCursorPos(nowX , nowY);
+    //SetCursorPos(nowX , nowY);
 }
 
 //<<destructor>>

@@ -14,7 +14,7 @@ MouseCtrl::MouseCtrl(){
     }
     DriftRecCounter = 0;
     posReset();
-    gyroSensitivity = 30;
+    gyroSensitivity = 225;
     state = MOUSECTRL_MSSTATE;
 }
 
@@ -31,8 +31,12 @@ bool MouseCtrl::moveCursor(int *accl, int *gyro, double *velocity, int *AcclZero
     //如果一開始就對drift處理
 
     //濾掉 雜訊 gyro
-    bool isGyroMoved = gyroMoveFilter(gyro, GyroMoveTh);
-
+    bool isGyroMoved = true;
+    //如果只是假移 不需要管是否有drift的雜訊了(很可能是用在畫軌跡)
+    if(realMove == true)
+    {//真的移動才需要做gyro濾值得動作
+        isGyroMoved = gyroMoveFilter(gyro, GyroMoveTh);
+    }
     if( isGyroMoved ){
         //處理drift問題
         //removeGyroDrift(gyro);
@@ -198,7 +202,7 @@ bool MouseCtrl::gyroMoveFilter(int *gyro, int threshold){
 void MouseCtrl::posReset(){
     dx = 0;
     dy = 0;
-    cs.moveTo(cs.cX, cs.cY);
+    //cs.moveTo(cs.cX, cs.cY);
 }
 
 int MouseCtrl::sendMouseInput(int CtrlFlag){

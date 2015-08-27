@@ -2,6 +2,8 @@
 #include <math.h>
 #include <cstdlib>
 
+#include "iostream"
+
 #include <QObject>
 
 using namespace std;
@@ -289,9 +291,6 @@ ctData sumOfPNTrajWithSign(trajData &data)
     ctData newData;
     newData.level = new int*[newLen];
     newData.count = new int[newLen];
-    newData.shwC = new int[newLen];
-    newData.unShwC = new int[newLen];
-    newData.totalC = 1;
     newData.length = newLen;
 
     int newIdx = 0;
@@ -309,8 +308,6 @@ ctData sumOfPNTrajWithSign(trajData &data)
         }
         newData.level[newIdx] = new int[3];
         newData.count[newIdx] = cCount[i];
-        newData.shwC[newIdx] = 1;
-        newData.unShwC[newIdx] = 0;
         for(int axis=0; axis<3; axis++){
             newData.level[newIdx][axis] = buffer[i][axis];
         }
@@ -795,14 +792,12 @@ dualIntArray getZoneBestMatchLoop(intArray tempIntA, intArray sampleIntA, ctData
     return bestDual;
 }
 
+//會產生memory leak(舊的CT沒被刪除)
 ctData ctDataRecoverXZFromIntA(ctData &originCT, intArray intA){
     ctData newData;
     newData.length = intA.length;
     newData.level = new int*[intA.length];
     newData.count = new int[intA.length];
-    newData.shwC = new int[intA.length];
-    newData.unShwC = new int[intA.length];
-    newData.totalC = originCT.totalC;
 
     int oC = 0;
     for(int idx=0 ; idx<intA.length; idx++){
@@ -812,16 +807,12 @@ ctData ctDataRecoverXZFromIntA(ctData &originCT, intArray intA){
             newData.level[idx][1] = 0;
             newData.level[idx][2] = 0;
             newData.count[idx] = 0;
-            newData.shwC[idx] = 0;
-            newData.unShwC[idx] = 0;
         }else
         {//not zero
             newData.level[idx][0] = originCT.level[oC][0];
             newData.level[idx][1] = originCT.level[oC][1];
             newData.level[idx][2] = originCT.level[oC][2];
             newData.count[idx] = originCT.count[oC];
-            newData.shwC[idx] = originCT.shwC[oC];
-            newData.unShwC[idx] = originCT.unShwC[oC];
             oC++;
         }
     }
@@ -993,6 +984,19 @@ dualIntArray fillSpaceWithZero(dualIntArray data){
     return data;
 }
 
+void enhanceUnmatchPercent(double &cvalue, double &unmatchPercent){
+    if(unmatchPercent > 1){
+        cvalue = -1;
+        unmatchPercent = 0;
+    }else if(unmatchPercent > 0.5){
+        //介於1~0.5 該軸的correlation值 變成負影響
+        cvalue *= -1;
+        unmatchPercent = 1 - unmatchPercent;
+    }else{
+        unmatchPercent *= 2;
+    }
+}
+
 double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
     intArray tempDis = ctDataXZDistance(Temp);
@@ -1003,7 +1007,7 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
     if(printResult){
         printf("Data Match Detail (t, s)=>Ignored pair\n");
-        printf("   |      Temp     |     Sample    |      Dist     |	    Type\n");
+        printf("   |      Temp     |     Sample    |      Dist     |    Type\n");
         int idx = 0;
         int tempZeroC = 0;
         for(int Midx=0 ; Midx < Temp.length ; Midx++){
@@ -1015,94 +1019,53 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
             if( tempIntA[0].values[idx] == 0 && tempIntA[2].values[idx] == 0)
                 tempZeroC++;
-
-            int tIdx = idx - tempZeroC;
-            /*if( sampleIntA[0].values[idx] == 0 && sampleIntA[2].values[idx] == 0 ){
-                int ttLen = Temp.shwC[idx] + Temp.unShwC[idx];
-                printf(" | (%2d/%2d:%.2f) |", Temp.shwC[idx], ttLen, Temp.shwC[idx]/(double)ttLen);
-            }else{
-                int ttLen = Temp.shwC[idx] + Temp.unShwC[idx];
-                if(ttLen > 0){
-                    printf(" |  %2d/%2d:%.2f  |", Temp.shwC[idx], ttLen, Temp.shwC[idx]/(double)ttLen);
-                }
-            }*/
             idx++;
 
             printf("\n");
         }
-        printf("   |     Temp    |    Sample   |     Dist    |	   Type\n");
+        printf("   |     Temp      |    Sample     |     Dist      |	Type\n");
     }
 
     double pX = getCorrOfAxisWithNoZero(tempIntA[0], sampleIntA[0], 1);
     double pZ = getCorrOfAxisWithNoZero(tempIntA[2], sampleIntA[2], 1);
-    double pDis = getCorrOfAxisWithNoZero(tempDis, sampleDis, 1);
-    printf("pX:%f pZ:%f pDis:%f\n", pX, pZ, pDis);
+    //double pDis = getCorrOfAxisWithNoZero(tempDis, sampleDis, 1);
 
-    //if(evType == 1 || evType == 2 || evType == 3){
-        pX = (pX - 0.6) * 10.0/4;
-        pZ = (pZ - 0.6) * 10.0/4;
-        pDis = (pDis - 0.6) * 10.0/4;
-    //}
 
-    double unmathcPX = unMatchedPercent(tempIntA[0], sampleIntA[0]);
-    double unmathcPZ = unMatchedPercent(tempIntA[2], sampleIntA[2]);
+    double oX = pX;
+    double oZ = pZ;
+
+    pX = (pX - 0.5) * 10.0/5;
+    pZ = (pZ - 0.5) * 10.0/5;
 
     if(printResult){
-        printf("Unmatch percent: %.4f %.4f\n", unmathcPX, unmathcPZ);
-        printf("pX      %f \n", pX);
-        printf("pZ      %f \n", pZ);
-        printf("pDis    %f \n", pDis);
-        printf("percent %f \n", (pX+pZ+pDis)/3);
+        //printf(QObject::tr("處理前 correlation X:%.4f Z:%.4f\n").toLocal8Bit().data(), oX, oZ);
+        printf( QObject::tr("處理後corr(X:%.4f, pZ:%.4f) = 處理前(corr(X:%.4f, pZ:%.4f) - 0.5) * 10.0 / 5\n").toLocal8Bit().data(), pX, pZ, oX, oZ);
     }
 
     //px pz pdis都要介於-1~1之間
     //避免如果某一軸真的非常非常不像 因此最差可以到-1
-    if(pX < -1 || pX > 1)
-        pX = -1;
-    if(pZ < -1 || pZ > 1)
-        pZ = -1;
-    if(pDis < -1 || pDis > 1)
-        pDis = -1;
+    //if(pX < -1 || pX > 1)
+    //    pX = -1;
+    //if(pZ < -1 || pZ > 1)
+    //    pZ = -1;
 
-    //防止unmathcPX unmathcPZ unmathcPXZ pX pZ pDis不在0~1之間的狀況
-    if(unmathcPX > 1){
-        unmathcPX = 1.0;
-        pX = -1;
-    }else if(unmathcPX < 0){
-        unmathcPX = 0;
-    }else if(pX > 0){
-        if(unmathcPX >= 0.2){
-            unmathcPX *= 2;
-        }
-        if(unmathcPX >= 0.05){
-            pX = pX * (1 - unmathcPX);
-        }
-    }
+    double unmathcPX = unMatchedPercent(tempIntA[0], sampleIntA[0]);
+    double unmathcPZ = unMatchedPercent(tempIntA[2], sampleIntA[2]);
+    double ounmatchPX = unmathcPX;
+    double ounmatchPZ = unmathcPZ;
 
-    if(unmathcPZ > 1){
-        unmathcPZ = 1.0;
-        pZ = -1;
-    }else if(unmathcPZ < 0){
-        unmathcPZ = 0;
-    }else if(pZ > 0){
-        if(unmathcPZ >= 0.2){
-            unmathcPZ *= 2;
-        }
-        if(unmathcPZ >= 0.05){
-            pZ = pZ * (1 - unmathcPZ);
-        }
-    }
+    // enhance unmatch percent
+    enhanceUnmatchPercent(pX, unmathcPX);
+    enhanceUnmatchPercent(pZ, unmathcPZ);
 
-    double unmatchPXZ = unmathcPX + unmathcPZ;
-    if(unmatchPXZ > 1){
-        unmatchPXZ = 1.0;
-        pDis = -1;
-    }else if(unmatchPXZ < 0){
-        unmatchPXZ = 0;
-    }else if(pDis > 0){
-        if(unmathcPX >= 0.1 && unmathcPZ >= 0.1){
-            pDis = pDis * (1-(unmathcPX+unmathcPZ));
-        }
+    pX = pX * (1 - unmathcPX);
+    pZ = pZ * (1 - unmathcPZ);
+
+    if(printResult){
+        printf("Primitive Unmatch percent: %.4f %.4f\n", ounmatchPX, ounmatchPZ);
+        printf("Enhanced  Unmatch percent: %.4f %.4f\n", unmathcPX, unmathcPZ);
+        printf(QObject::tr("若unmatch percent > 0.5 該軸相似度直接歸0 小於0.5值double\n").toLocal8Bit().data());
+        printf("Final correlation(%.4f, %.4f) = pv * (1 - unmatch)\n", pX, pZ);
     }
 
     //計算X跟Z各自值的總和
@@ -1116,35 +1079,377 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
         sampleTotalX += abs(Sample.level[i][0]);
         sampleTotalZ += abs(Sample.level[i][2]);
     }
-    printf("Temp x:%7d z:%d | Sample x:%7d z:%7d\n", tempTotalX, tempTotalZ, sampleTotalX, sampleTotalZ);
 
     double xRatio = (double)tempTotalX / (tempTotalX + tempTotalZ);
     double zRatio = (double)tempTotalZ / (tempTotalX + tempTotalZ);
-    printf( QObject::tr("目前使用Temp的x z總值比例作為pX, pZ所佔的比重(xRatio:%.4f, zRatio:%.4f)\n").toLocal8Bit().data(), xRatio, zRatio);
 
-    printf( QObject::tr("處理後 pX:%.4f pZ:%.4f pDis:%.4f\n").toLocal8Bit().data(), pX, pZ, pDis);
-    //double comResult = (pX*0.4 + pZ*0.4 + pDis*0.2);
-    double comResult = (pX*xRatio + pZ*zRatio + pDis*0);
+    //double comResult = (pX * xRatio + pZ * zRatio);
+    double comResult = (pX*xRatio + pZ*zRatio);
     if(printResult){
+        printf("Temp x:%7d z:%d | Sample x:%7d z:%7d\n", tempTotalX, tempTotalZ, sampleTotalX, sampleTotalZ);
+        printf( QObject::tr("目前使用Temp的x z總值比例作為pX, pZ所佔的比重(xRatio:%.4f, zRatio:%.4f)\n").toLocal8Bit().data(), xRatio, zRatio);
+        printf( QObject::tr("處理後 pX:%.4f pZ:%.4f\n").toLocal8Bit().data(), pX, pZ);
+        printf("Result = pX * xRatio + pZ * zRatio\n");
         printf( QObject::tr("最終結果 %.4f\n").toLocal8Bit().data(), comResult);
         printf("----------------------------------------------------------\n");
     }
     return comResult;
 }
 
-dualCTData compareTwoSymbol(trajData *temp, trajData *sample, double &similarity, bool printResult){
+//刪除沒得merge 但X跟Z軸的值卻又都小於平均值超過th倍的特徵
+ctData removeNoisyFeature(ctData data, int th){
+    double *mean = getABSMeanOfCTData(data);
+
+    if(mean[0]==0 || mean[2]==0)
+        return data;//zero guard
+
+    //std::cout << "mean:" << mean[0] << ", " << mean[2] << std::endl;
+
+    double thRatio = 1.0 / th;
+    int removeCount = 0;
+    for(int i=0 ; i<data.length ; i++){
+        double ratioX = abs(data.level[i][0]) / mean[0];
+        double ratioZ = abs(data.level[i][2]) / mean[2];
+
+        //std::cout << "i[" << i <<"]:" << ratioX << ", " << ratioZ << std::endl;
+
+        if( ratioX < thRatio && ratioZ < thRatio){
+            data.level[i][0] = 0;
+            data.level[i][1] = 0;
+            data.level[i][2] = 0;
+            removeCount++;
+        }
+    }
+
+    if( removeCount > 0 ){
+        int newLen = data.length - removeCount;
+        ctData newData = getNewCTData(newLen);
+        int newIdx = 0;
+        for(int oldIdx=0 ; oldIdx<data.length ; oldIdx++){
+            if(data.level[oldIdx][0]!=0 || data.level[oldIdx][2]!=0){
+                newData.level[newIdx][0] = data.level[oldIdx][0];
+                newData.level[newIdx][1] = data.level[oldIdx][1];
+                newData.level[newIdx][2] = data.level[oldIdx][2];
+                newIdx++;
+            }
+        }
+        freeCT(data);
+        return newData;
+    }else{
+        return data;
+    }
+}
+
+//試用code
+ctData* postProcees(intArray tempIntA, intArray sampleIntA, ctData temp, ctData sample, intArray cList){
+    int **bufferT = new int*[tempIntA.length];
+    int **bufferS = new int*[sampleIntA.length];
+    int *countT = new int[tempIntA.length];
+    int *countS = new int[sampleIntA.length];
+
+    if(tempIntA.length != sampleIntA.length){
+        printf("postProcees: temp跟sample intarray的長度不同 無法做後處理\n");
+        return NULL;
+    }
+
+    intArray cTempIntA = copyIntA(tempIntA);
+    intArray cSampleIntA = copyIntA(sampleIntA);
+
+    ctData mappedTemp = ctDataRecoverXZFromIntA(temp, tempIntA);
+    ctData mappedSample = ctDataRecoverXZFromIntA(sample, sampleIntA);
+
+    int len = cSampleIntA.length;
+    int sameC = 1;
+    int newIdx = 0;
+
+    //printf("len:%d ; temp.length:%d ; sample.length:%d\n",len, temp.length, sample.length);
+    for(int idx=0 ; idx < len ; idx++)
+    {
+        bufferT[idx] = new int[3];
+        bufferS[idx] = new int[3];
+        bufferT[idx][0] = 0;
+        bufferT[idx][1] = 0;
+        bufferT[idx][2] = 0;
+        countT[idx] = 0;
+        bufferS[idx][0] = 0;
+        bufferS[idx][1] = 0;
+        bufferS[idx][2] = 0;
+        countS[idx] = 0;
+        cList.values[idx] = 0;
+
+        int nonZeroItem = -1;//0->temp is not zero 1->sample
+        if(idx-1 >= 0)
+        {
+            bool theSame = true;
+            for(int cCIdx = idx-1 ; cCIdx >= idx-sameC ; cCIdx--){
+
+                if(cTempIntA.values[idx] == 0)
+                    nonZeroItem = 1;
+                if(cSampleIntA.values[idx] == 0)
+                    nonZeroItem = 0;
+
+                if( ((cTempIntA.values[idx] == 0 && cSampleIntA.values[cCIdx] == 0) && !isSameType(cTempIntA.values[cCIdx], cSampleIntA.values[idx])))
+                {//若對角為0 且另一對角不為同type
+                    theSame = false;
+                    break;
+                }else if( ((cTempIntA.values[cCIdx] == 0 && cSampleIntA.values[idx] == 0) && !isSameType(cTempIntA.values[idx], cSampleIntA.values[cCIdx])) ){
+                    theSame = false;
+                    break;
+                }
+
+
+                if( (cTempIntA.values[idx]   == 0 && cTempIntA.values[cCIdx]   == 0) ||
+                    (cSampleIntA.values[idx] == 0 && cSampleIntA.values[cCIdx] == 0)
+                ){//單邊皆為0的獨自判斷
+                    int idxType = cTempIntA.values[idx] + cSampleIntA.values[idx];
+                    int cCIdxType = cTempIntA.values[cCIdx] + cSampleIntA.values[cCIdx];
+                    if( !isSameType(idxType, cCIdxType) ){
+                        theSame = false;
+                        break;
+                    }
+
+                }else if( (!isSameType(cTempIntA.values[idx], cTempIntA.values[cCIdx]) || !isSameType(cSampleIntA.values[idx], cSampleIntA.values[cCIdx])) &&
+                    (!isSameType(cTempIntA.values[idx], cSampleIntA.values[cCIdx]) || !isSameType(cSampleIntA.values[idx], cTempIntA.values[cCIdx]))
+                ){//單邊皆為0不行 12 0
+                  //              8 0 會誤融
+                    theSame = false;
+                    break;
+                }
+            }
+            //printf("%d| theSame:%d\n", idx, theSame);
+
+            if(theSame)
+            {//可以結合
+                sameC++;
+            }else
+            {//不能結合
+                bool isPassed = false;
+                //測試是否能往前跨越融合
+                if(nonZeroItem == 0)
+                {//該點temp is not zero and sample is zero ; 但前面的bufferT不確定
+                    //往前檢查 (前面的已經被融合到buffer裡了)
+                    for(int crIdx = newIdx ; crIdx>=0 ; crIdx--){
+                        if(    isSameType( ctDataMergeV(bufferT[crIdx][0], bufferT[crIdx][2]), cTempIntA.values[idx])
+                            && isSameType( ctDataMergeV(bufferS[crIdx][0], bufferS[crIdx][2]), cTempIntA.values[idx])//避免對角為0 另一對角不合的問題
+                        ){
+                            //printf("crIdx:%d ; x:%d ; z:%d ; bufferT[crIdx]:%d %d\n", crIdx+1, mappedTemp.level[idx][0], mappedTemp.level[idx][2], bufferT[crIdx][0], bufferT[crIdx][2]);
+                            bufferT[crIdx][0] += mappedTemp.level[idx][0];
+                            bufferT[crIdx][1] += mappedTemp.level[idx][1];
+                            bufferT[crIdx][2] += mappedTemp.level[idx][2];
+                            countT[crIdx] += mappedTemp.count[idx];
+
+                            mappedTemp.level[idx][0] = 0;
+                            mappedTemp.level[idx][1] = 0;
+                            mappedTemp.level[idx][2] = 0;
+                            mappedTemp.count[idx] = 0;
+                            cTempIntA.values[idx] = 0;
+                            cList.values[idx] = crIdx;
+                            isPassed = true;
+                        }
+                        //若前面的Temp不為0 不論相不相符 都不能再往下比(否則將會打破順序性)
+                        if(bufferT[crIdx][0] != 0 || bufferT[crIdx][2] != 0){
+                            break;
+                        }
+                    }
+
+                }else if(nonZeroItem == 1)
+                {//temp is zero and sample is not
+                    //往前檢查
+                    for(int crIdx = newIdx ; crIdx>=0 ; crIdx--){
+
+                        if(    isSameType( ctDataMergeV(bufferS[crIdx][0], bufferS[crIdx][2]), cSampleIntA.values[idx])
+                            && isSameType( ctDataMergeV(bufferT[crIdx][0], bufferT[crIdx][2]), cSampleIntA.values[idx])//避免對角為0 另一對角不合的問題
+                        ){
+                            //printf("crIdx:%d newIdx:%d ; idx:%d; x:%d ; z:%d ; bufferS[crIdx]:%d %d\n", crIdx+1, newIdx+1, idx, mappedSample.level[idx][0], mappedSample.level[idx][2], bufferS[crIdx][0], bufferS[crIdx][2]);
+                            bufferS[crIdx][0] += mappedSample.level[idx][0];
+                            bufferS[crIdx][1] += mappedSample.level[idx][1];
+                            bufferS[crIdx][2] += mappedSample.level[idx][2];
+                            countS[crIdx] += mappedSample.count[idx];
+
+                            //清空 ; 因為在這個idx的temp跟sample一個融進之前的波 一個歸0 所以會被後面的波相融, 不能讓值被重複加總
+                            mappedSample.level[idx][0] = 0;
+                            mappedSample.level[idx][1] = 0;
+                            mappedSample.level[idx][2] = 0;
+                            mappedSample.count[idx] = 0;
+                            cSampleIntA.values[idx] = 0;
+                            cList.values[idx] = crIdx;
+                            isPassed = true;
+                        }
+                        //else{printf("crIdx:%d bufferS[crIdx]:%d %d\n", crIdx+1, bufferS[crIdx][0], bufferS[crIdx][2]);}
+                        //若前面的Sample不為0 不論相不相符 都不能再往下比(否則將會打破順序性)
+                        if(bufferS[crIdx][0] != 0 || bufferS[crIdx][2] != 0){
+                            break;
+                        }
+                    }
+                }
+
+                //往前檢查沒通過
+                //	則往後檢查(後面的都還沒動過)
+                if((!isPassed) && (cTempIntA.values[idx] > 0 && cSampleIntA.values[idx] == 0))
+                {//temp不為0 sample為0的狀況
+                    for(int crIdx = idx+1 ; crIdx<len ; crIdx++){
+                        int tX = mappedTemp.level[crIdx][0];
+                        int tZ = mappedTemp.level[crIdx][2];
+                        int sX = mappedSample.level[crIdx][0];
+                        int sZ = mappedSample.level[crIdx][2];
+
+                        if(    isSameType( cTempIntA.values[crIdx], cTempIntA.values[idx])
+                            && isSameType( cSampleIntA.values[crIdx], cTempIntA.values[idx])//避免對角為0 另一對角不合的問題
+                        ){//比對成功
+                            //printf("往後檢查通過 crIdx:%d ; Temp xz:%d %d ; mappedTemp:%d %d ; mappedSample:%d %d\n", crIdx+1, mappedTemp.level[idx][0], mappedTemp.level[idx][2], tX, tZ, sX, sZ);
+                            mappedTemp.level[crIdx][0] += mappedTemp.level[idx][0];
+                            mappedTemp.level[crIdx][1] += mappedTemp.level[idx][1];
+                            mappedTemp.level[crIdx][2] += mappedTemp.level[idx][2];
+                            mappedTemp.count[crIdx] += mappedTemp.count[idx];
+                            cTempIntA.values[crIdx] = ctDataMergeV(mappedTemp.level[crIdx][0], mappedTemp.level[crIdx][2]);
+                            //printf("往後檢查通過 crIdx:%d ; x:%d ; z:%d ; mappedTemp:%d %d ; mappedSample:%d %d\n", crIdx+1, mappedTemp.level[idx][0], mappedTemp.level[idx][2], mappedTemp.level[crIdx][0], mappedTemp.level[crIdx][2], sX, sZ);
+                            //清0
+                            mappedTemp.level[idx][0] = 0;
+                            mappedTemp.level[idx][1] = 0;
+                            mappedTemp.level[idx][2] = 0;
+                            mappedTemp.count[idx] = 0;
+                            cTempIntA.values[idx] = 0;
+                            cList.values[idx] = len+crIdx;
+                            isPassed = true;
+                        }
+
+                        //後方的碰到不為0的temp, 不能再跨越比對了 (或已經找到配對,則不需繼續比對)
+                        if(cTempIntA.values[crIdx] != 0 || isPassed){
+                            break;
+                        }
+                    }
+                }else if((!isPassed) && (cTempIntA.values[idx] == 0 && cSampleIntA.values[idx] > 0))
+                {//temp為0 sample不為0的狀況
+                    for(int crIdx = idx+1 ; crIdx<len ; crIdx++){
+                        int tX = mappedTemp.level[crIdx][0];
+                        int tZ = mappedTemp.level[crIdx][2];
+                        int sX = mappedSample.level[crIdx][0];
+                        int sZ = mappedSample.level[crIdx][2];
+
+                        if(    isSameType( cSampleIntA.values[crIdx], cSampleIntA.values[idx])
+                            && isSameType( cTempIntA.values[crIdx], cSampleIntA.values[idx])//避免對角為0 另一對角不合的問題
+                        ){//比對成功
+                            //printf("往後檢查通過 crIdx:%d ; Sample xz:%d %d ; mappedTemp:%d %d ; mappedSample:%d %d\n", crIdx+1, mappedSample.level[idx][0], mappedSample.level[idx][2], tX, tZ, sX, sZ);
+                            mappedSample.level[crIdx][0] += mappedSample.level[idx][0];
+                            mappedSample.level[crIdx][1] += mappedSample.level[idx][1];
+                            mappedSample.level[crIdx][2] += mappedSample.level[idx][2];
+                            mappedSample.count[crIdx] += mappedSample.count[idx];
+                            cSampleIntA.values[crIdx] = ctDataMergeV(mappedSample.level[crIdx][0], mappedSample.level[crIdx][2]);
+                            //清0
+                            mappedSample.level[idx][0] = 0;
+                            mappedSample.level[idx][1] = 0;
+                            mappedSample.level[idx][2] = 0;
+                            mappedSample.count[idx] = 0;
+                            cSampleIntA.values[idx] = 0;
+                            cList.values[idx] = len+crIdx;
+                            isPassed = true;
+                            //printf("加總後 crIdx:%d ; x:%d ; z:%d ; mappedTemp:%d %d ; mappedSample:%d %d\n", crIdx+1, mappedTemp.level[idx][0], mappedTemp.level[idx][2], mappedTemp.level[crIdx][0], mappedTemp.level[crIdx][2], mappedSample.level[crIdx][0], mappedSample.level[crIdx][2]);
+                        }
+
+                        //後方的碰到不為0的temp, 不能再跨越比對了 (或已經找到配對,則不需繼續比對)
+                        if(cSampleIntA.values[crIdx] != 0 || isPassed){
+                            break;
+                        }
+                    }
+                }
+
+                if(!isPassed){
+                    sameC = 1;
+                    newIdx++;
+                    cList.values[idx] = newIdx;
+                }else{
+                    sameC++;
+                }
+            }
+        }
+
+        //printf("newIdx:%d ; idx:%d ; tZeroC:%d sZeroC:%d\n",newIdx, idx, tZeroC, sZeroC);
+        if(cList.values[idx] == 0){
+            cList.values[idx] = newIdx;
+        }
+
+
+        if( idx >= 0 && idx < mappedTemp.length ){
+            bufferT[newIdx][0] += mappedTemp.level[idx][0];
+            bufferT[newIdx][1] += mappedTemp.level[idx][1];
+            bufferT[newIdx][2] += mappedTemp.level[idx][2];
+            countT[newIdx] += mappedTemp.count[idx];
+        }
+
+        if( idx >= 0 && idx < mappedSample.length ){
+            bufferS[newIdx][0] += mappedSample.level[idx][0];
+            bufferS[newIdx][1] += mappedSample.level[idx][1];
+            bufferS[newIdx][2] += mappedSample.level[idx][2];
+            countS[newIdx] += mappedSample.count[idx];
+        }
+    }
+
+    //放入新的ctData
+    ctData *newData = new ctData[2];
+    int newL = newIdx+1;
+    newData[0].length = newL;
+    newData[0].count = new int[newL];
+    newData[0].level = new int*[newL];
+    newData[1].length = newL;
+    newData[1].count = new int[newL];
+    newData[1].level = new int*[newL];
+
+    for(int idx = 0; idx < newL ; idx++){
+        newData[0].level[idx] = new int[3];
+        newData[1].level[idx] = new int[3];
+        for(int axis=0; axis<3; axis++){
+            newData[0].level[idx][axis] = bufferT[idx][axis];
+            newData[0].count[idx] = countT[idx];
+            newData[1].level[idx][axis] = bufferS[idx][axis];
+            newData[1].count[idx] = countS[idx];
+        }
+    }
+
+    //處理往後融合的idx問題
+    for(int i=0 ; i<len ; i++){
+        while(cList.values[i] >= len){
+            int cListIdx = cList.values[i] - len;
+            cList.values[i] = cList.values[cListIdx];
+        }
+    }
+
+    //釋放記憶體
+    for(int i=0 ; i<tempIntA.length ; i++){
+        delete[] bufferT[i];
+        delete[] mappedTemp.level[i];
+    }
+    for(int i=0 ; i<sampleIntA.length ; i++){
+        delete[] bufferS[i];
+        delete[] mappedSample.level[i];
+    }
+    delete[] bufferT;
+    delete[] bufferS;
+    delete[] countT;
+    delete[] countS;
+    delete[] cTempIntA.values;
+    delete[] cSampleIntA.values;
+    delete[] mappedTemp.level;
+    delete[] mappedSample.level;
+    delete[] mappedTemp.count;
+    delete[] mappedSample.count;
+
+    return newData;
+}
+//試用code
+
+dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
     //處理temp
-    removeTail(*temp);
+    //removeTail(*temp);
     isSameTypeLimit = 1;
     ctData ctDataTemp = sumOfPNTrajWithSign(*temp);
     //處理sample
-    removeTail(*sample);
+    //removeTail(*sample);
     isSameTypeLimit = 1;
     ctData ctDataSample = sumOfPNTrajWithSign(*sample);
 
-    //subsample
-    subSampleEigen(ctDataTemp, 0.4);
-    subSampleEigen(ctDataSample, 0.4);
+    //subsample(使數值變小)
+    subSampleEigen(ctDataTemp, 0.1);
+    subSampleEigen(ctDataSample, 0.1);
 
     /******* Merge連續相近特徵的原因 ******
     Merge連續相近的特徵值原因是
@@ -1163,8 +1468,12 @@ dualCTData compareTwoSymbol(trajData *temp, trajData *sample, double &similarity
     mergeSimilarType(ctDataTemp);
     mergeSimilarType(ctDataSample);
 
+    //刪除太小又無法merge的特徵值(XZ都小於平均5倍以上)
+    ctDataTemp   = removeNoisyFeature(ctDataTemp  , 5);
+    ctDataSample = removeNoisyFeature(ctDataSample, 5);
+
     //type差距在1以內才能match在一起
-    isSameTypeLimit = 1;
+    isSameTypeLimit = 2;
 
     //轉換成type
     intArray tempMerge = ctDataMergeXZToIntA(ctDataTemp);
@@ -1173,13 +1482,32 @@ dualCTData compareTwoSymbol(trajData *temp, trajData *sample, double &similarity
     dualIntArray bestMatch = getZoneBestMatchLoop(tempMerge, sampleMerge, ctDataTemp, ctDataSample, false);
     bestMatch = fillSpaceWithZero(bestMatch);
 
+
+    /*************************************
+     *  引用去年所寫的post process(雖然寫的很爛 但是重寫很麻煩)
+     *  僅僅先拿來試用 若有問題再丟棄不用
+     * ***********************************/
+    /*intArray combineList;
+    combineList.length = bestMatch.A.length;
+    combineList.values = new int[bestMatch.A.length];
+
+    isSameTypeLimit = 1;
+    ctData *processedPair = postProcees(bestMatch.A, bestMatch.B, ctDataTemp, ctDataSample, combineList);
+
+    ctDataTemp = processedPair[0];
+    ctDataSample = processedPair[1];*/
+    //最終決定不用Post process
+    //  原因: 在前面removeNoisyFeature之後
+    //       Match的結果都不錯
+    //       而且postprocess當初寫的時候 有奇怪的融合
+    //       明明isSameTypeLimit設2 可是有時候差3也會融合
+    //       這是不用的主因
+    ////////////////////////////////////////////////////////////
+
     //會有memory leak
+    //如果試用的code 拿掉不用 就需要這段
     ctDataTemp   = ctDataRecoverXZFromIntA(ctDataTemp, bestMatch.A);
     ctDataSample = ctDataRecoverXZFromIntA(ctDataSample, bestMatch.B);
-
-    //後處理(重對齊)
-
-    //消除微小特徵Sample的
 
     //融合
     //printf("mergeContinuousSimilar\n");
@@ -1192,7 +1520,7 @@ dualCTData compareTwoSymbol(trajData *temp, trajData *sample, double &similarity
     //mergeContinuousSimilar(ctDataTemp, ctDataSample);
 
     //印出整個對齊結果
-    similarity = showBestMatchResult(ctDataTemp, ctDataSample, printResult);
+    //similarity = showBestMatchResult(ctDataTemp, ctDataSample, printResult);
 
     dualCTData resultCT;
     resultCT.A = ctDataTemp;
@@ -1330,8 +1658,8 @@ void mergeSimilarType(ctData &data){
     for(int i=1 ; i<data.length ; i++){
         int thisType = ctDataMergeV(data.level[i][0], data.level[i][2]);
         if( isSameType(thisType, lastType) ){
-            printf("X:%d = %d + %d\n", data.level[lastIdx][0]+data.level[i][0], data.level[lastIdx][0], data.level[i][0]);
-            printf("Z:%d = %d + %d\n", data.level[lastIdx][2]+data.level[i][2], data.level[lastIdx][2], data.level[i][2]);
+            //printf("X:%d = %d + %d\n", data.level[lastIdx][0]+data.level[i][0], data.level[lastIdx][0], data.level[i][0]);
+            //printf("Z:%d = %d + %d\n", data.level[lastIdx][2]+data.level[i][2], data.level[lastIdx][2], data.level[i][2]);
 
             data.level[lastIdx][0] += data.level[i][0];
             data.level[lastIdx][2] += data.level[i][2];
