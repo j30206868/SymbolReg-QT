@@ -29,6 +29,9 @@ int getRound(double num);
 bool isEqualSign(int A, int B);
 int getSign(int v);
 
+//檔案處理
+bool cleanFile(std::string fname);
+
 intArray splitAsInt(std::string str, std::string delimiter);
 
 #endif // COMMONFUNC_H

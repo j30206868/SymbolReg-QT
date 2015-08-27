@@ -47,10 +47,9 @@
 
 const int IdRole = Qt::UserRole;
 
-void addSelectBoxItemsByFileName(QComboBox *combox, QString fname){
+int getFileCount(QString fname){
     QString sampleDirPath = fname;
     QDir sampleDir(sampleDirPath);
-
     int fileCount = 0;
     //先計算檔案數量
     foreach(QFileInfo item, sampleDir.entryInfoList() )
@@ -61,6 +60,14 @@ void addSelectBoxItemsByFileName(QComboBox *combox, QString fname){
             fileCount++;
         }
     }
+    return fileCount;
+}
+
+void addSelectBoxItemsByFileName(QComboBox *combox, QString fname){
+    QString sampleDirPath = fname;
+    QDir sampleDir(sampleDirPath);
+
+    int fileCount = getFileCount(fname);
     //依序加入檔案 檔名照(1~filecount.txt)排序
     for(int i=1 ; i<=fileCount ; i++){
         std::stringstream sstm;
@@ -80,16 +87,18 @@ void addSelectBoxItemsByFileName(QComboBox *combox, QString fname){
 Window::Window()
 {
     isReadingMPU6050 = false;
+    tempDirPath   = "Symbol/";
+    sampleDirPath = "input/";
 
     renderArea = new RenderArea;
 
     tempSelectBox = new QComboBox;
-    addSelectBoxItemsByFileName(tempSelectBox, tr("Symbol/"));
+    addSelectBoxItemsByFileName(tempSelectBox, tempDirPath);
     tempLabel = new QLabel(tr("&Temp:"));
     tempLabel->setBuddy(tempSelectBox);
 
     sampleSelectBox = new QComboBox;
-    addSelectBoxItemsByFileName(sampleSelectBox, tr("input/"));
+    addSelectBoxItemsByFileName(sampleSelectBox, sampleDirPath);
     sampleLabel = new QLabel(tr("&Sample:"));
     sampleLabel->setBuddy(sampleSelectBox);
 
@@ -141,8 +150,6 @@ Window::Window()
     connect(sampleSelectBox, SIGNAL(activated(int)),
             this, SLOT(sampleChanged()));
 
-
-
     connect(penWidthSpinBox, SIGNAL(valueChanged(int)),
             this, SLOT(penChanged()));
     connect(penStyleComboBox, SIGNAL(activated(int)),
@@ -183,15 +190,45 @@ Window::Window()
 
     setLayout(mainLayout);
 
+    lastSampleFileNum = getFileCount(sampleDirPath);
+    int lastSampleIdx = lastSampleFileNum - 1;
+    int nextSampleCount = lastSampleFileNum + 1;
+
     tempSelectBox->setCurrentIndex(10);
     tempChanged();
-    sampleSelectBox->setCurrentIndex(2);
+    sampleSelectBox->setCurrentIndex(lastSampleIdx);
     sampleChanged();
 
     penChanged();
     antialiasingCheckBox->setChecked(true);
 
+    mpuReader = new MpuReader(this);
+    mpuReader->setSymSaveDir(sampleDirPath);
+    mpuReader->setNextSymCount(nextSampleCount);
+    QMetaObject::Connection cR = connect(mpuReader, SIGNAL(updateNewSymbol()),
+                                         this, SLOT(updateSampleBox()));
+
+    toggleMPU6050Reading();
+
+    //std::cout << "connect result: " << cR.d_ptr << std::endl;
+
     setWindowTitle(tr("Basic Drawing"));
+}
+
+void Window::updateSampleBox(){
+    int symCount = lastSampleFileNum + 1;
+
+    std::stringstream sstm;
+    sstm << symCount << ".txt";
+    QString filename = sampleDirPath + sstm.str().c_str();
+    sampleSelectBox->addItem(filename, filename);
+    sampleSelectBox->setCurrentIndex(symCount-1);
+
+    //更新最新的檔案數量
+    lastSampleFileNum = getFileCount(sampleDirPath);
+    //如果數量不正確應該要重新加入combobox的item 不過目前沒寫
+    std::cout << "updateSampleBox triggered current idx: "<<symCount-1 << std::endl;
+    sampleChanged();
 }
 
 void Window::setRenderAreaLastStrokeBox(QSpinBox *spinBoxObj){
@@ -204,10 +241,13 @@ void Window::lastStrokeChanged(){
 
 void Window::toggleMPU6050Reading(){
     isReadingMPU6050 = !isReadingMPU6050;
+
     if(isReadingMPU6050){
-
+        mpuReader->startReading();
+        readDataBtn->setText(tr("停止讀取"));
     }else{
-
+        mpuReader->stopReading();
+        readDataBtn->setText(tr("開始讀取MPU6050數據"));
     }
 }
 

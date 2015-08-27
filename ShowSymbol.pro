@@ -21,7 +21,9 @@ SOURCES += main.cpp\
     symbolreg.cpp \
     mousectrl.cpp \
     cursor.cpp \
-    comreader.cpp
+    serialclass.cpp \
+    symrecorder.cpp \
+    mpu6050reader.cpp
 
 HEADERS  += mainwindow.h \
     renderarea.h \
@@ -30,9 +32,14 @@ HEADERS  += mainwindow.h \
     symbolreg.h \
     mousectrl.h \
     cursor.h \
-    comreader.h
+    symrecorder.h \
+    serialclass.h \
+    mpu6050reader.h
 
 FORMS    += mainwindow.ui
 
 RESOURCES += \
     basicdrawing.qrc
+
+DISTFILES += \
+    Diary

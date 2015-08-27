@@ -146,7 +146,7 @@ void RenderArea::setPenColorByChar(int i, char c)
 {
     if(i == lastStroke){
         //pen.setColor(QColor(0,0,255,255));
-        pen.setWidth(strokeWidth + 5);\
+        pen.setWidth(strokeWidth + 10);\
     }else{
         pen.setWidth(strokeWidth);
     }

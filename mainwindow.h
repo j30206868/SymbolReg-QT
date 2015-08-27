@@ -42,6 +42,7 @@
 #define WINDOW_H
 
 #include <QWidget>
+#include "mpu6050reader.h"
 
 class QCheckBox;
 class QComboBox;
@@ -60,12 +61,13 @@ public:
 
 private slots:
     void penChanged();
-
     void tempChanged();
     void sampleChanged();
     void toggleMPU6050Reading();
-
+    void updateSampleBox();
     void lastStrokeChanged();
+
+private:
     void setRenderAreaLastStrokeBox(QSpinBox *spinBoxObj);
 
 private:
@@ -93,7 +95,12 @@ private:
 
     QPushButton *readDataBtn;
 
+    MpuReader *mpuReader;
+
     bool isReadingMPU6050;
+    QString tempDirPath;
+    QString sampleDirPath;
+    int lastSampleFileNum;
 };
 
 #endif // WINDOW_H

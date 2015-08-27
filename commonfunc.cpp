@@ -1,5 +1,6 @@
 #include "commonfunc.h"
 #include <QString>
+#include <fstream>
 
 //IntArray處理
 void cleanIntA(intArray &data){
@@ -83,6 +84,16 @@ int getSign(int v){
     }
 }
 
+//檔案處理
+bool cleanFile(std::string fname){
+
+    //clean the file
+    std::ofstream myfile (fname.c_str());
+    myfile << "";
+    myfile.close();
+
+    return true;
+}
 
 //String處理
 intArray splitAsInt(std::string str, std::string delimiter){
