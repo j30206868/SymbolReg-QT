@@ -64,6 +64,7 @@ private slots:
     void tempChanged();
     void sampleChanged();
     void toggleMPU6050Reading();
+    void mpu6050ReadingEnded();
     void updateSampleBox();
     void lastStrokeChanged();
 

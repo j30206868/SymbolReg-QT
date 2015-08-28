@@ -83,7 +83,7 @@ public slots:
 
     void changeTempPath(QString str);
     void changeSamplePath(QString str);
-    void transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, int h, int &offsetX, int &offsetY, double &scaleX, double &scaleY);
+    void transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, int h, int &offsetX, int &offsetY, double &scaleX, double &scaleY, bool xyEqualProportion = true);
     void drawDetailBoxBesideComparedFigure(dualCTData bestMatch, SymLine *lines, double result, QRect rect);
     void drawSymbolWithSymLine(SymLine *lines, int lineNum, int offsetX, int offsetY, double scaleX, double scaleY);
     void drawMatchedResult(dualCTData bestMatch, double result, int boxW, int boxH, int sym1X, int sym1Y, int sym2X, int sym2Y );
@@ -107,6 +107,7 @@ private:
     QString tempPath;
     QString samplePath;
     dualCTData bestMatchResult;
+    bool isNewResultValid;
     double result;
 };
 

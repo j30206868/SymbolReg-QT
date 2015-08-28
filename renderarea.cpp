@@ -65,7 +65,7 @@ RenderArea::RenderArea(QWidget *parent)
     samplePath = "";
     lastStroke = 0;
     strokeWidth = 1;
-
+    isNewResultValid = false;
     //this->setFixedSize(200,250);
 
     setBackgroundRole(QPalette::Base);
@@ -75,12 +75,12 @@ RenderArea::RenderArea(QWidget *parent)
 
 QSize RenderArea::minimumSizeHint() const
 {
-    return QSize(100, 350);
+    return QSize(600, 500);
 }
 
 QSize RenderArea::sizeHint() const
 {
-    return QSize(550, 350);
+    return QSize(600, 600);
 }
 
 void RenderArea::setLastStroke(int value){
@@ -190,7 +190,7 @@ void updateBtmRight(int &BRValue, int input){
     }
 }
 
-void RenderArea::transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, int h, int &offsetX, int &offsetY, double &scaleX, double &scaleY){
+void RenderArea::transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, int h, int &offsetX, int &offsetY, double &scaleX, double &scaleY, bool xyEqualProportion){
     //取得將symbol位移到x1, y1為(0,0) ; x2,y2為(w,h) 時
     //  所需使用的offset跟scale參數值
 
@@ -218,9 +218,11 @@ void RenderArea::transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, 
     scaleX = (w/ow);
     scaleY = (h/oh);
 
-    //若是scaleX跟scaleY各自使用, 則就不是XY同時等比例縮放了, 所以選擇小的來用
-    scaleX = std::min(scaleX, scaleY);
-    scaleY = std::min(scaleX, scaleY);
+    if(xyEqualProportion){
+        //若是scaleX跟scaleY各自使用, 則就不是XY同時等比例縮放了, 所以選擇小的來用
+        scaleX = std::min(scaleX, scaleY);
+        scaleY = std::min(scaleX, scaleY);
+    }
 
     //如果scale變大或變小, offset也要跟著縮放(因為他縮放的規則是座標直接乘以scale的數值)
     offsetX = (0 - left) * scaleX;
@@ -348,17 +350,34 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, double result, int boxW
 
     if( lineNum > 0)
     {//至少有一個筆才需要畫
-        int    offsetX;
-        int    offsetY;
-        double scaleX;
-        double scaleY;
-        transformSymbolIntoBoxSize(sym1Lines, lineNum, boxW, boxH, offsetX, offsetY, scaleX, scaleY);
-        drawSymbolWithSymLine(sym1Lines, lineNum, sym1X + offsetX, sym1Y + offsetY, scaleX, scaleY);
+        int    offset1X, offset2X;
+        int    offset1Y, offset2Y;
+        double scale1X, scale2X;
+        double scale1Y, scale2Y;
+        transformSymbolIntoBoxSize(sym1Lines, lineNum, boxW, boxH, offset1X, offset1Y, scale1X, scale1Y);
+        transformSymbolIntoBoxSize(sym2Lines, lineNum, boxW, boxH, offset2X, offset2Y, scale2X, scale2Y);
 
-        transformSymbolIntoBoxSize(sym2Lines, lineNum, boxW, boxH, offsetX, offsetY, scaleX, scaleY);
-        drawSymbolWithSymLine(sym2Lines, lineNum, sym2X + offsetX, sym2Y + offsetY, scaleX, scaleY);
+        //如果直接照 框框的 比例縮放的話
+        //兩個大小相差非常非常多的字也會看起來 也會一樣大
+        //所以這邊scale的值 如果>1則取小的, 如果<1則取大的
+        //(因為正常來說讀到的值scale都是<1 所以直接取大)
+        offset1X *= 1/scale1X;
+        offset1Y *= 1/scale1Y;
+        offset2X *= 1/scale2X;
+        offset2Y *= 1/scale2Y;
+        //先把offset值還原
+        double fScaleX = std::min(scale1X, scale2X);
+        double fScaleY = std::min(scale1Y, scale2Y);
+        //取得最終版本的scale值
+        offset1X *= fScaleX;
+        offset1Y *= fScaleY;
+        offset2X *= fScaleX;
+        offset2Y *= fScaleY;
+        //將symbol畫出
+        drawSymbolWithSymLine(sym1Lines, lineNum, sym1X + offset1X, sym1Y + offset1Y, fScaleX, fScaleY);
+        drawSymbolWithSymLine(sym2Lines, lineNum, sym2X + offset2X, sym2Y + offset2Y, fScaleX, fScaleY);
 
-        int figureRight = sym1X + offsetX + boxW;
+        int figureRight = sym1X + offset1X + boxW;
         int figureTop   = sym1Y;
         int detailBoxLeftPadding = 25;
         int dBoxX1 = figureRight + detailBoxLeftPadding;
@@ -379,37 +398,54 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
     if(isCompared == false){
         trajData *temp   = readTrajDataFromFile(tempPath  .toStdString());
         trajData *sample = readTrajDataFromFile(samplePath.toStdString());
-        result = 0;
-        bestMatchResult = compareTwoSymbol(temp, sample);
 
-        //印出整個對齊結果
-        result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, true);
-        std::cout << std::endl;
+        if(temp->length==0 || sample->length==0){
+            std::cout << "Temp or sample is empty, can't be compared." << std::endl;
+            isNewResultValid = false;
+        }else{
+            result = 0;
+            bestMatchResult = compareTwoSymbol(temp, sample);
 
-        //更新筆數總數
-        lastStroke = bestMatchResult.A.length-1;
-        spinBoxObj->setRange(0, lastStroke);
-        spinBoxObj->setValue(lastStroke);
+            //印出整個對齊結果
+            result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, true);
+            std::cout << std::endl;
 
+            //更新筆數總數
+            lastStroke = bestMatchResult.A.length-1;
+            spinBoxObj->setRange(0, lastStroke);
+            spinBoxObj->setValue(lastStroke);
+            isNewResultValid = true;
+        }
         isCompared = true;
     }
 
-    int w = 150, h = 150;
+    int w = 220, h = 220;
     //起始座標
     int figuresUpDownPadding = 20;
     int sym1X = 20; int sym1Y = 20;
     int sym2X = 20; int sym2Y = sym1Y + h + figuresUpDownPadding;
 
-    QPainter symPainter(this);
-    pen.setColor(QColor(155,155,155,155));
-    pen.setWidth(0);
-    symPainter.setPen(pen);
+    if(isNewResultValid){
+        QPainter symPainter(this);
+        pen.setColor(QColor(155,155,155,155));
+        pen.setWidth(0);
+        symPainter.setPen(pen);
 
-    symPainter.drawRect(sym1X-5, sym1Y-5, w+10, h+10);
-    symPainter.drawRect(sym2X-5, sym2Y-5, w+10, h+10);
+        symPainter.drawRect(sym1X-5, sym1Y-5, w+10, h+10);
+        symPainter.drawRect(sym2X-5, sym2Y-5, w+10, h+10);
 
-    drawMatchedResult(bestMatchResult, result, w, h, sym1X, sym1Y, sym2X, sym2Y);
+        drawMatchedResult(bestMatchResult, result, w, h, sym1X, sym1Y, sym2X, sym2Y);
+    }else{
+        QPainter symPainter(this);
+        pen.setColor(QColor(255,0,0,255));
+        pen.setWidth(5);
+        symPainter.setPen(pen);
 
+        QFont font("標楷體");
+        font.setPixelSize(20);
+        symPainter.setFont( font );
+        symPainter.drawText(sym1X, sym1Y, tr("Template或Sample為空,無法比較!"));
+    }
     /*painter.setRenderHint(QPainter::Antialiasing, false);
     painter.setPen(palette().dark().color());
     painter.setBrush(Qt::NoBrush);

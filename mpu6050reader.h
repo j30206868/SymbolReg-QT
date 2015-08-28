@@ -36,6 +36,7 @@ public:
     bool isReading();
 signals:
     void updateNewSymbol();//return值 是從main那邊取得下一個檔案的編號
+    void readingEnded();
 
 protected:
     void run() Q_DECL_OVERRIDE;

@@ -66,6 +66,7 @@ void MpuReader::run()
     while(!stop){
         if(!SP->IsConnected()){
             std::cout << "Failed to read " << COM_NUM << " Mpu6050 reader is off." << std::endl;
+            emit readingEnded();
             break;
         }
 

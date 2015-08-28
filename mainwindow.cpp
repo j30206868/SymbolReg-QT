@@ -104,7 +104,7 @@ Window::Window()
 
     penWidthSpinBox = new QSpinBox;
     penWidthSpinBox->setRange(0, 20);
-    penWidthSpinBox->setSpecialValueText(tr("0 (cosmetic pen)"));
+    //penWidthSpinBox->setSpecialValueText(tr("0 (cosmetic pen)"));
 
     penWidthLabel = new QLabel(tr("Pen &Width:"));
     penWidthLabel->setBuddy(penWidthSpinBox);
@@ -119,8 +119,30 @@ Window::Window()
 
 
     readDataBtn = new QPushButton(tr("開始讀取MPU6050數據"), this);
-    connect(readDataBtn, SIGNAL(released()),
+    connect(readDataBtn, SIGNAL(clicked()),
             this, SLOT(toggleMPU6050Reading()));
+    readDataBtn->setStyleSheet("QPushButton {"
+                                   "color: black;"
+                                   "border-width: 1px;"
+                                   "border-color: #339;"
+                                   "border-style: solid;"
+                                   "border-radius: 7;"
+                                   "padding: 10px;"
+                                   "font-size: 14px;"
+                                   "padding-left: 10px;"
+                                   "padding-right: 10px;"
+                                   "min-width: 100px;"
+                                   "max-width: 150px;"
+                                   "min-height: 20px;"
+                               "}"
+                               "QPushButton:hover {"
+                                   "background-color: qlineargradient(x1: 1, y1: 1, x2: 0, y2: 0.5,"
+                                                                      "stop: 0 #ffffff, stop: 1 #ffffff);"
+                               "}"
+                               "QPushButton:pressed {"
+                                   "background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 2, fx: 0.5, fy: 1, stop: 0 rgba(255,30,30,255), stop: 0.2 rgba(255,30,30,144), stop: 0.4 rgba(255,30,30,32));"
+                               "}"
+                               );
 
     penStyleComboBox = new QComboBox;
     penStyleComboBox->addItem(tr("Solid"), static_cast<int>(Qt::SolidLine));
@@ -165,28 +187,37 @@ Window::Window()
     QGridLayout *mainLayout = new QGridLayout;
     mainLayout->setColumnStretch(0, 1);
     mainLayout->setColumnStretch(3, 1);
-    mainLayout->addWidget(renderArea, 0, 0, 1, 4);
+    mainLayout->addWidget(renderArea, 0, 0, 8, 6);
 
-    mainLayout->addWidget(tempLabel, 2, 0, Qt::AlignRight);
-    mainLayout->addWidget(tempSelectBox, 2, 1);
-    mainLayout->addWidget(sampleLabel, 2, 2, Qt::AlignRight);
-    mainLayout->addWidget(sampleSelectBox, 2, 3);
+    mainLayout->addWidget(tempLabel, 3, 7, Qt::AlignRight);
+    mainLayout->addWidget(tempSelectBox, 3, 8);
+    mainLayout->addWidget(sampleLabel, 3, 9, Qt::AlignRight);
+    mainLayout->addWidget(sampleSelectBox, 3, 10);
 
-    mainLayout->addWidget(penWidthLabel, 4, 0, Qt::AlignRight);
-    mainLayout->addWidget(penWidthSpinBox, 4, 1);
-    mainLayout->addWidget(penStyleLabel, 3, 0, Qt::AlignRight);
-    mainLayout->addWidget(penStyleComboBox, 3, 1);
-    mainLayout->addWidget(penCapLabel, 3, 2, Qt::AlignRight);
-    mainLayout->addWidget(penCapComboBox, 3, 3);
+    mainLayout->addWidget(penWidthLabel, 5, 7, Qt::AlignRight);
+    mainLayout->addWidget(penWidthSpinBox, 5, 8);
+    mainLayout->addWidget(penStyleLabel, 4, 7, Qt::AlignRight);
+    mainLayout->addWidget(penStyleComboBox, 4, 8);
+    mainLayout->addWidget(penCapLabel, 4, 9, Qt::AlignRight);
+    mainLayout->addWidget(penCapComboBox, 4, 10);
 
-    mainLayout->addWidget(strokeLable, 4, 2, Qt::AlignRight);
-    mainLayout->addWidget(strokeSpinBox, 4, 3);
+    mainLayout->addWidget(strokeLable, 5, 9, Qt::AlignRight);
+    mainLayout->addWidget(strokeSpinBox, 5, 10);
 
-    mainLayout->addWidget(otherOptionsLabel, 5, 0, Qt::AlignRight);
-    mainLayout->addWidget(antialiasingCheckBox, 5, 1, 1, 1, Qt::AlignRight);
-    mainLayout->addWidget(transformationsCheckBox, 5, 2, 1, 2, Qt::AlignRight);
+    mainLayout->addWidget(otherOptionsLabel, 6, 7, Qt::AlignRight);
+    mainLayout->addWidget(antialiasingCheckBox, 6, 8, 1, 1, Qt::AlignRight);
+    mainLayout->addWidget(transformationsCheckBox, 6, 9, 1, 2, Qt::AlignRight);
 
-    mainLayout->addWidget(readDataBtn, 6, 3, Qt::AlignRight);
+    mainLayout->addWidget(readDataBtn, 7, 8, 1, 3, Qt::AlignCenter);
+
+    this->setStyleSheet("QComboBox, QSpinBox, QPushButton{"
+                            "background-color: qlineargradient(x1: 1, y1: 1, x2: 0, y2: 0.5,"
+                            "stop: 0 #ffffff, stop: 1 #cccccc);"
+                        "}"
+                        "Window, RenderArea{"
+                            "background-color: qlineargradient(x1: 0.5, y1: 1.1, x2: 0.5, y2: 0.9, x3: 0.5, y3: 0.85,"
+                            "stop: 0 #e55, stop: 1 #eee, stop: 2 #eee);"
+                        "}");
 
     setLayout(mainLayout);
 
@@ -205,8 +236,11 @@ Window::Window()
     mpuReader = new MpuReader(this);
     mpuReader->setSymSaveDir(sampleDirPath);
     mpuReader->setNextSymCount(nextSampleCount);
-    QMetaObject::Connection cR = connect(mpuReader, SIGNAL(updateNewSymbol()),
-                                         this, SLOT(updateSampleBox()));
+    connect(mpuReader, SIGNAL(updateNewSymbol()),
+                              this, SLOT(updateSampleBox()));
+    connect(mpuReader, SIGNAL(readingEnded()),
+                              this, SLOT(mpu6050ReadingEnded()));
+
 
     toggleMPU6050Reading();
 
@@ -239,15 +273,31 @@ void Window::lastStrokeChanged(){
     renderArea->setLastStroke( strokeSpinBox->value() );
 }
 
+void Window::mpu6050ReadingEnded(){
+    toggleMPU6050Reading();
+}
+
 void Window::toggleMPU6050Reading(){
     isReadingMPU6050 = !isReadingMPU6050;
 
     if(isReadingMPU6050){
         mpuReader->startReading();
         readDataBtn->setText(tr("停止讀取"));
+        readDataBtn->setFixedWidth(100);
+
+        this->setStyleSheet("Window, RenderArea{"
+                                "background-color: qlineargradient(x1: 0.5, y1: 1.1, x2: 0.5, y2: 0.9, x3: 0.5, y3: 0.85,"
+                                "stop: 0 #e55, stop: 1 #eee, stop: 2 #eee);"
+                            "}");
+
+
     }else{
         mpuReader->stopReading();
         readDataBtn->setText(tr("開始讀取MPU6050數據"));
+        readDataBtn->setFixedWidth(200);
+        this->setStyleSheet("Window, RenderArea{"
+                                "background-color: #eee;"
+                            "}");
     }
 }
 
