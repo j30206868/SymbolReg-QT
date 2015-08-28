@@ -92,6 +92,9 @@ Window::Window()
 
     renderArea = new RenderArea;
 
+    connect(renderArea, SIGNAL(changeMainTempCurIdx(int)),
+                    this, SLOT(changeTempCurIdx(int)));
+
     tempSelectBox = new QComboBox;
     addSelectBoxItemsByFileName(tempSelectBox, tempDirPath);
     tempLabel = new QLabel(tr("&Temp:"));
@@ -117,10 +120,12 @@ Window::Window()
             this, SLOT(lastStrokeChanged()));
     renderArea->setLastStrokeSpinBox(strokeSpinBox);
 
-
     readDataBtn = new QPushButton(tr("開始讀取MPU6050數據"), this);
+
     connect(readDataBtn, SIGNAL(clicked()),
             this, SLOT(toggleMPU6050Reading()));
+
+
     readDataBtn->setStyleSheet("QPushButton {"
                                    "color: black;"
                                    "border-width: 1px;"
@@ -189,6 +194,8 @@ Window::Window()
     mainLayout->setColumnStretch(3, 1);
     mainLayout->addWidget(renderArea, 0, 0, 8, 6);
 
+
+
     mainLayout->addWidget(tempLabel, 3, 7, Qt::AlignRight);
     mainLayout->addWidget(tempSelectBox, 3, 8);
     mainLayout->addWidget(sampleLabel, 3, 9, Qt::AlignRight);
@@ -249,6 +256,11 @@ Window::Window()
     setWindowTitle(tr("Basic Drawing"));
 }
 
+void Window::changeTempCurIdx(int nowIdx){
+    tempSelectBox->setCurrentIndex(nowIdx);
+    std::cout << "temp changed" << std::endl;
+}
+
 void Window::updateSampleBox(){
     int symCount = lastSampleFileNum + 1;
 
@@ -261,7 +273,7 @@ void Window::updateSampleBox(){
     //更新最新的檔案數量
     lastSampleFileNum = getFileCount(sampleDirPath);
     //如果數量不正確應該要重新加入combobox的item 不過目前沒寫
-    std::cout << "updateSampleBox triggered current idx: "<<symCount-1 << std::endl;
+    //std::cout << "updateSampleBox triggered current idx: "<<symCount-1 << std::endl;
     sampleChanged(true);
 }
 

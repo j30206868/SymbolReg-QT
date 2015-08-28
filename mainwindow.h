@@ -67,6 +67,7 @@ private slots:
     void mpu6050ReadingEnded();
     void updateSampleBox();
     void lastStrokeChanged();
+    void changeTempCurIdx(int nowIdx);
 
 private:
     void setRenderAreaLastStrokeBox(QSpinBox *spinBoxObj);

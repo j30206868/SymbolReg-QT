@@ -88,6 +88,8 @@ public slots:
     void drawSymbolWithSymLine(SymLine *lines, int lineNum, int offsetX, int offsetY, double scaleX, double scaleY);
     void drawMatchedResult(dualCTData bestMatch, double result, int boxW, int boxH, int sym1X, int sym1Y, int sym2X, int sym2Y );
 
+signals:
+    void changeMainTempCurIdx(int nowIdx);
 
 protected:
     void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE;

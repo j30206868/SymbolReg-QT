@@ -428,9 +428,15 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
                 SymbolMatch SymMatch = SymbolMatch(tempDirPath.toStdString(), tempFileAmount);
                 double *simiList = new double[SymMatch.getSymAmt()];
                 matchSymIdx = SymMatch.findBestMatchedSym(sample, simiList);
-                temp = SymMatch.getSymbol(matchSymIdx);
+                if(matchSymIdx != -1){
+                    temp = SymMatch.getSymbol(matchSymIdx);
+                    emit changeMainTempCurIdx(matchSymIdx);
+                }
                 showMostSimilarTemp = false;//只秀第一次
-            }else{
+            }
+
+            if(matchSymIdx == -1)
+            {//若找不到相似度夠高的 或 指定使用目前指到的temp, 則使用目前的temp
                 sstm.str("");
                 sstm << tempDirPath.toStdString() << tempCurFileCount << ".txt";
                 temp   = readTrajDataFromFile(sstm.str());

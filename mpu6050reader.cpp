@@ -100,7 +100,7 @@ void MpuReader::run()
         //單純紀錄Gyro的raw data(當然因為前面有中位值濾波 所以不是完全的raw data)
         std::stringstream sstm;
         sstm << symDirPath.toStdString() << nextSymCount << ".txt";
-        int toggleFlag = SR.recGyroSymInSeqNum( buttons[0] , sstm.str(), gyro);
+        int toggleFlag = SR.recGyroSymInSeqNum( buttons[0] | buttons[1] , sstm.str(), gyro);
         if(toggleFlag == SR.SYMREC_TOGGLEDOFF)
         {//當最新一個完整的符號錄製結束
             std::cout << "Got New Symbol: " << sstm.str() << std::endl;
