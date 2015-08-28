@@ -262,7 +262,7 @@ void Window::updateSampleBox(){
     lastSampleFileNum = getFileCount(sampleDirPath);
     //如果數量不正確應該要重新加入combobox的item 不過目前沒寫
     std::cout << "updateSampleBox triggered current idx: "<<symCount-1 << std::endl;
-    sampleChanged();
+    sampleChanged(true);
 }
 
 void Window::setRenderAreaLastStrokeBox(QSpinBox *spinBoxObj){
@@ -303,16 +303,21 @@ void Window::toggleMPU6050Reading(){
 
 void Window::tempChanged()
 {
-    QString tempPath = tempSelectBox->itemData(
-                            tempSelectBox->currentIndex(), IdRole).toString();
-    renderArea->changeTempPath(tempPath);
+    //QString tempPath = tempSelectBox->itemData(
+    //                        tempSelectBox->currentIndex(), IdRole).toString();
+    int curCount = tempSelectBox->currentIndex() + 1;
+    int fileAmt  = getFileCount(tempDirPath);
+    renderArea->changeTempPath(tempDirPath, curCount, fileAmt);
 }
 
-void Window::sampleChanged()
+void Window::sampleChanged(bool showMostSimilar)
 {
-    QString samplePath = sampleSelectBox->itemData(
-                            sampleSelectBox->currentIndex(), IdRole).toString();
-    renderArea->changeSamplePath(samplePath);
+    //QString samplePath = sampleSelectBox->itemData(
+    //                        sampleSelectBox->currentIndex(), IdRole).toString();
+    //renderArea->changeSamplePath(samplePath);
+    int curCount = sampleSelectBox->currentIndex() + 1;
+    int fileAmt  = getFileCount(sampleDirPath);
+    renderArea->changeSamplePath(sampleDirPath, curCount, fileAmt, showMostSimilar);
 }
 
 void Window::penChanged()

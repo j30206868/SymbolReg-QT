@@ -35,6 +35,7 @@ struct trajData{
 
 //宣告ctdata內的記憶體
 void freeCT(ctData data);
+void freeDualCT(dualCTData dualData);
 ctData getNewCTData(int newLen);
 double* getABSMeanOfCTData(ctData data);
 

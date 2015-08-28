@@ -62,7 +62,7 @@ public:
 private slots:
     void penChanged();
     void tempChanged();
-    void sampleChanged();
+    void sampleChanged(bool showMostSimilar = false);
     void toggleMPU6050Reading();
     void mpu6050ReadingEnded();
     void updateSampleBox();

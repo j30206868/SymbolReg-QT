@@ -81,8 +81,8 @@ public slots:
     void setLastStrokeSpinBox(QSpinBox *obj);
     void setPenColorByChar(int i, char c);
 
-    void changeTempPath(QString str);
-    void changeSamplePath(QString str);
+    void changeTempPath(QString tDirPath, int tCurCount, int tFileAmt);
+    void changeSamplePath(QString sDirPath, int sCurCount, int sFileAmt, bool showMostSimilar);
     void transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, int h, int &offsetX, int &offsetY, double &scaleX, double &scaleY, bool xyEqualProportion = true);
     void drawDetailBoxBesideComparedFigure(dualCTData bestMatch, SymLine *lines, double result, QRect rect);
     void drawSymbolWithSymLine(SymLine *lines, int lineNum, int offsetX, int offsetY, double scaleX, double scaleY);
@@ -104,8 +104,15 @@ private:
     QSpinBox *spinBoxObj;
 
     bool isCompared;
-    QString tempPath;
-    QString samplePath;
+    QString tempDirPath;
+    int tempCurFileCount;
+    int tempFileAmount;
+    QString sampleDirPath;
+    int sampleCurFileCount;
+    int sampleFileAmount;
+
+    bool showMostSimilarTemp;
+
     dualCTData bestMatchResult;
     bool isNewResultValid;
     double result;

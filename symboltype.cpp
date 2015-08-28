@@ -19,6 +19,10 @@ void freeCT(ctData data){
     }
     delete[] data.level;
 }
+void freeDualCT(dualCTData dualData){
+    freeCT(dualData.A);
+    freeCT(dualData.B);
+}
 ctData getNewCTData(int newLen){
     ctData newTemp;
     newTemp.length = newLen;

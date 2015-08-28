@@ -990,7 +990,8 @@ void enhanceUnmatchPercent(double &cvalue, double &unmatchPercent){
         unmatchPercent = 0;
     }else if(unmatchPercent > 0.5){
         //介於1~0.5 該軸的correlation值 變成負影響
-        cvalue *= -1;
+        if(cvalue > 0)//原本為正變負 原本為負則不變
+            cvalue *= -1;
         unmatchPercent = 1 - unmatchPercent;
     }else{
         unmatchPercent *= 2;

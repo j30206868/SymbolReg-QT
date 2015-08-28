@@ -50,6 +50,7 @@
 #include <stdio.h>
 
 #include "mousectrl.h"
+#include "symfinder.h"
 
 #include <QPainter>
 
@@ -61,8 +62,13 @@ RenderArea::RenderArea(QWidget *parent)
     transformed = false;
 
     isCompared = true;//一開始什麼都沒有不要比較
-    tempPath = "";
-    samplePath = "";
+    tempDirPath = "";
+    tempCurFileCount = -1;
+    tempFileAmount = 0;
+    sampleDirPath = "";
+    sampleCurFileCount = -1;
+    sampleFileAmount = 0;
+    showMostSimilarTemp = false;
     lastStroke = 0;
     strokeWidth = 1;
     isNewResultValid = false;
@@ -122,21 +128,27 @@ void RenderArea::setTransformed(bool transformed)
     update();
 }
 
-void RenderArea::changeTempPath(QString str){
-    tempPath = str;
-    std::cout << tr("tempPath: ").toLocal8Bit().data() << tempPath.toLocal8Bit().data() << std::endl;
+void RenderArea::changeTempPath(QString tDirPath, int tCurCount, int tFileAmt){
+    tempDirPath      = tDirPath;
+    tempCurFileCount = tCurCount;
+    tempFileAmount   = tFileAmt;
 
-    if(samplePath != ""){
+    std::cout << tr("tempPath: ").toLocal8Bit().data() << tempDirPath.toLocal8Bit().data() << std::endl;
+
+    if(sampleCurFileCount >= 0 && sampleFileAmount > 0){
         isCompared = false;
         update();
     }
 }
 
-void RenderArea::changeSamplePath(QString str){
-    samplePath = str;
-    std::cout << tr("samplePath: ").toLocal8Bit().data() << samplePath.toLocal8Bit().data() << std::endl;
+void RenderArea::changeSamplePath(QString sDirPath, int sCurCount, int sFileAmt, bool showMostSimilar){
+    sampleDirPath      = sDirPath;
+    sampleCurFileCount = sCurCount;
+    sampleFileAmount   = sFileAmt;
+    showMostSimilarTemp = showMostSimilar;
+    std::cout << tr("samplePath: ").toLocal8Bit().data() << sampleDirPath.toLocal8Bit().data() << std::endl;
 
-    if(tempPath != ""){
+    if(tempCurFileCount >= 0 && tempFileAmount > 0){
         isCompared = false;
         update();
     }
@@ -377,7 +389,7 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, double result, int boxW
         drawSymbolWithSymLine(sym1Lines, lineNum, sym1X + offset1X, sym1Y + offset1Y, fScaleX, fScaleY);
         drawSymbolWithSymLine(sym2Lines, lineNum, sym2X + offset2X, sym2Y + offset2Y, fScaleX, fScaleY);
 
-        int figureRight = sym1X + offset1X + boxW;
+        int figureRight = sym1X + boxW;
         int figureTop   = sym1Y;
         int detailBoxLeftPadding = 25;
         int dBoxX1 = figureRight + detailBoxLeftPadding;
@@ -396,14 +408,34 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
 {
 
     if(isCompared == false){
-        trajData *temp   = readTrajDataFromFile(tempPath  .toStdString());
-        trajData *sample = readTrajDataFromFile(samplePath.toStdString());
+        std::stringstream sstm;
+        sstm << sampleDirPath.toStdString() << sampleCurFileCount << ".txt";
 
-        if(temp->length==0 || sample->length==0){
-            std::cout << "Temp or sample is empty, can't be compared." << std::endl;
+        trajData *temp   = 0;
+        trajData *sample = readTrajDataFromFile(sstm.str());
+
+        if( sample->length==0 ){
+            std::cout << "Sample is empty, can't be compared." << std::endl;
             isNewResultValid = false;
         }else{
             result = 0;
+            freeDualCT(bestMatchResult);
+            //bestMatchResult = compareTwoSymbol(temp, sample);
+
+            int matchSymIdx = -1;
+            if( showMostSimilarTemp ){
+                //找相似度最高的temp並秀出來
+                SymbolMatch SymMatch = SymbolMatch(tempDirPath.toStdString(), tempFileAmount);
+                double *simiList = new double[SymMatch.getSymAmt()];
+                matchSymIdx = SymMatch.findBestMatchedSym(sample, simiList);
+                temp = SymMatch.getSymbol(matchSymIdx);
+                showMostSimilarTemp = false;//只秀第一次
+            }else{
+                sstm.str("");
+                sstm << tempDirPath.toStdString() << tempCurFileCount << ".txt";
+                temp   = readTrajDataFromFile(sstm.str());
+            }
+
             bestMatchResult = compareTwoSymbol(temp, sample);
 
             //印出整個對齊結果

@@ -23,7 +23,8 @@ SOURCES += main.cpp\
     cursor.cpp \
     serialclass.cpp \
     symrecorder.cpp \
-    mpu6050reader.cpp
+    mpu6050reader.cpp \
+    symfinder.cpp
 
 HEADERS  += mainwindow.h \
     renderarea.h \
@@ -34,7 +35,8 @@ HEADERS  += mainwindow.h \
     cursor.h \
     symrecorder.h \
     serialclass.h \
-    mpu6050reader.h
+    mpu6050reader.h \
+    symfinder.h
 
 FORMS    += mainwindow.ui
 
