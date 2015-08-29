@@ -10,6 +10,7 @@ Bugs
         4. 自動找到最相似的Temp後, 在main window的combobox顯示的temp path不會自動更正
 (ok)    5. 相似度計算, correlation為負 且 unamtch percent > 0.5 會負負得正, 相似度會變超高
 (ok)    6. Temp Sample figure的scaleXY 會影響到左邊detail文字的位置
+        7. 學弟寫的一個符號三還符號四 在跟template比對時, 因為只有一筆對一筆, 沒法求得correlation造成nan的結果
 重建度問題
     2.學習部份問題很明顯
         時間久了寫不像 -> 以寫3來說 以前建的時候怎麼寫的現在早忘了 所以寫不像(上面是平的還是尖的差很多, 但寫的時候不會刻意去記)
@@ -32,3 +33,10 @@ Bugs
 
         -> 由這點來看 學習的需求性反而降低了(當然還是有其優點, 但似乎不能解決問題)
 
+初學者問題
+    1. 因為不懂原理, 很可能緊繃 導致移動的時候幾乎沒有轉動到陀螺儀
+    2. 剛按住 以及 放開前 常常會造出很多雜訊
+
+備註:
+    原本build and run的path設定為
+        ../build-%{CurrentProject:Name}-%{CurrentKit:FileSystemName}-%{CurrentBuild:Name}
