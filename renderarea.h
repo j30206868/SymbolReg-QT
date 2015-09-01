@@ -86,7 +86,7 @@ public slots:
     void transformSymbolIntoBoxSize(SymLine *lines, int lineNum, int w, int h, int &offsetX, int &offsetY, double &scaleX, double &scaleY, bool xyEqualProportion = true);
     void drawDetailBoxBesideComparedFigure(dualCTData bestMatch, SymLine *lines, double result, QRect rect);
     void drawSymbolWithSymLine(SymLine *lines, int lineNum, int offsetX, int offsetY, double scaleX, double scaleY);
-    void drawMatchedResult(dualCTData bestMatch, double result, int boxW, int boxH, int sym1X, int sym1Y, int sym2X, int sym2Y );
+    void drawMatchedResult(dualCTData bestMatch, trajData *temp, trajData *sample, double result, int boxW, int boxH, int sym1X, int sym1Y, int sym2X, int sym2Y );
 
 signals:
     void changeMainTempCurIdx(int nowIdx);
@@ -115,6 +115,8 @@ private:
 
     bool showMostSimilarTemp;
 
+    trajData *usedTemp;
+    trajData *usedSample;
     dualCTData bestMatchResult;
     bool isNewResultValid;
     double result;

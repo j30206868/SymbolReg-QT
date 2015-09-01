@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../../ShowSymbol/renderarea.h"
+#include "../../renderarea.h"
 #include <QtCore/qbytearray.h>
 #include <QtCore/qmetatype.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)
@@ -19,8 +19,8 @@
 
 QT_BEGIN_MOC_NAMESPACE
 struct qt_meta_stringdata_RenderArea_t {
-    QByteArrayData data[58];
-    char stringdata0[578];
+    QByteArrayData data[61];
+    char stringdata0[600];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -81,12 +81,15 @@ QT_MOC_LITERAL(48, 492, 6), // "result"
 QT_MOC_LITERAL(49, 499, 4), // "rect"
 QT_MOC_LITERAL(50, 504, 21), // "drawSymbolWithSymLine"
 QT_MOC_LITERAL(51, 526, 17), // "drawMatchedResult"
-QT_MOC_LITERAL(52, 544, 4), // "boxW"
-QT_MOC_LITERAL(53, 549, 4), // "boxH"
-QT_MOC_LITERAL(54, 554, 5), // "sym1X"
-QT_MOC_LITERAL(55, 560, 5), // "sym1Y"
-QT_MOC_LITERAL(56, 566, 5), // "sym2X"
-QT_MOC_LITERAL(57, 572, 5) // "sym2Y"
+QT_MOC_LITERAL(52, 544, 9), // "trajData*"
+QT_MOC_LITERAL(53, 554, 4), // "temp"
+QT_MOC_LITERAL(54, 559, 6), // "sample"
+QT_MOC_LITERAL(55, 566, 4), // "boxW"
+QT_MOC_LITERAL(56, 571, 4), // "boxH"
+QT_MOC_LITERAL(57, 576, 5), // "sym1X"
+QT_MOC_LITERAL(58, 582, 5), // "sym1Y"
+QT_MOC_LITERAL(59, 588, 5), // "sym2X"
+QT_MOC_LITERAL(60, 594, 5) // "sym2Y"
 
     },
     "RenderArea\0changeMainTempCurIdx\0\0"
@@ -104,7 +107,8 @@ QT_MOC_LITERAL(57, 572, 5) // "sym2Y"
     "drawDetailBoxBesideComparedFigure\0"
     "dualCTData\0bestMatch\0result\0rect\0"
     "drawSymbolWithSymLine\0drawMatchedResult\0"
-    "boxW\0boxH\0sym1X\0sym1Y\0sym2X\0sym2Y"
+    "trajData*\0temp\0sample\0boxW\0boxH\0sym1X\0"
+    "sym1Y\0sym2X\0sym2Y"
 };
 #undef QT_MOC_LITERAL
 
@@ -139,7 +143,7 @@ static const uint qt_meta_data_RenderArea[] = {
       32,    8,  158,    2, 0x2a /* Public | MethodCloned */,
       45,    4,  175,    2, 0x0a /* Public */,
       50,    6,  184,    2, 0x0a /* Public */,
-      51,    8,  197,    2, 0x0a /* Public */,
+      51,   10,  197,    2, 0x0a /* Public */,
 
  // signals: parameters
     QMetaType::Void, QMetaType::Int,    3,
@@ -159,7 +163,7 @@ static const uint qt_meta_data_RenderArea[] = {
     QMetaType::Void, 0x80000000 | 33, QMetaType::Int, QMetaType::Int, QMetaType::Int, 0x80000000 | 38, 0x80000000 | 38, 0x80000000 | 41, 0x80000000 | 41,   34,   35,   36,   37,   39,   40,   42,   43,
     QMetaType::Void, 0x80000000 | 46, 0x80000000 | 33, QMetaType::Double, QMetaType::QRect,   47,   34,   48,   49,
     QMetaType::Void, 0x80000000 | 33, QMetaType::Int, QMetaType::Int, QMetaType::Int, QMetaType::Double, QMetaType::Double,   34,   35,   39,   40,   42,   43,
-    QMetaType::Void, 0x80000000 | 46, QMetaType::Double, QMetaType::Int, QMetaType::Int, QMetaType::Int, QMetaType::Int, QMetaType::Int, QMetaType::Int,   47,   48,   52,   53,   54,   55,   56,   57,
+    QMetaType::Void, 0x80000000 | 46, 0x80000000 | 52, 0x80000000 | 52, QMetaType::Double, QMetaType::Int, QMetaType::Int, QMetaType::Int, QMetaType::Int, QMetaType::Int, QMetaType::Int,   47,   53,   54,   48,   55,   56,   57,   58,   59,   60,
 
        0        // eod
 };
@@ -185,7 +189,7 @@ void RenderArea::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 12: _t->transformSymbolIntoBoxSize((*reinterpret_cast< SymLine*(*)>(_a[1])),(*reinterpret_cast< int(*)>(_a[2])),(*reinterpret_cast< int(*)>(_a[3])),(*reinterpret_cast< int(*)>(_a[4])),(*reinterpret_cast< int(*)>(_a[5])),(*reinterpret_cast< int(*)>(_a[6])),(*reinterpret_cast< double(*)>(_a[7])),(*reinterpret_cast< double(*)>(_a[8]))); break;
         case 13: _t->drawDetailBoxBesideComparedFigure((*reinterpret_cast< dualCTData(*)>(_a[1])),(*reinterpret_cast< SymLine*(*)>(_a[2])),(*reinterpret_cast< double(*)>(_a[3])),(*reinterpret_cast< QRect(*)>(_a[4]))); break;
         case 14: _t->drawSymbolWithSymLine((*reinterpret_cast< SymLine*(*)>(_a[1])),(*reinterpret_cast< int(*)>(_a[2])),(*reinterpret_cast< int(*)>(_a[3])),(*reinterpret_cast< int(*)>(_a[4])),(*reinterpret_cast< double(*)>(_a[5])),(*reinterpret_cast< double(*)>(_a[6]))); break;
-        case 15: _t->drawMatchedResult((*reinterpret_cast< dualCTData(*)>(_a[1])),(*reinterpret_cast< double(*)>(_a[2])),(*reinterpret_cast< int(*)>(_a[3])),(*reinterpret_cast< int(*)>(_a[4])),(*reinterpret_cast< int(*)>(_a[5])),(*reinterpret_cast< int(*)>(_a[6])),(*reinterpret_cast< int(*)>(_a[7])),(*reinterpret_cast< int(*)>(_a[8]))); break;
+        case 15: _t->drawMatchedResult((*reinterpret_cast< dualCTData(*)>(_a[1])),(*reinterpret_cast< trajData*(*)>(_a[2])),(*reinterpret_cast< trajData*(*)>(_a[3])),(*reinterpret_cast< double(*)>(_a[4])),(*reinterpret_cast< int(*)>(_a[5])),(*reinterpret_cast< int(*)>(_a[6])),(*reinterpret_cast< int(*)>(_a[7])),(*reinterpret_cast< int(*)>(_a[8])),(*reinterpret_cast< int(*)>(_a[9])),(*reinterpret_cast< int(*)>(_a[10]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {

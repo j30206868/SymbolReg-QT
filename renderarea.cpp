@@ -76,17 +76,20 @@ RenderArea::RenderArea(QWidget *parent)
 
     setBackgroundRole(QPalette::Base);
     setAutoFillBackground(true);
-    bestMatchResult;
+    bestMatchResult.A.length = 0;
+    bestMatchResult.B.length = 0;
+    usedTemp   = 0;
+    usedSample = 0;
 }
 
 QSize RenderArea::minimumSizeHint() const
 {
-    return QSize(600, 500);
+    return QSize(720, 500);
 }
 
 QSize RenderArea::sizeHint() const
 {
-    return QSize(600, 600);
+    return QSize(720, 600);
 }
 
 void RenderArea::setLastStroke(int value){
@@ -270,6 +273,19 @@ void RenderArea::drawDetailBoxBesideComparedFigure(dualCTData bestMatch, SymLine
 
     symPainter.setPen(pen);
     symPainter.drawText(x1, y1, sstm.str().c_str());
+
+    sstm.str("");
+    sstm << "  |    Temp特徵向量   |  Sample特徵向量   " << std::endl;
+    fontSize = 13;
+    font.setPixelSize(fontSize);
+    font.setBold(false);
+    //font.setUnderline(true);
+    pen.setColor(QColor(0,0,0,255));
+    symPainter.setFont(font);
+    symPainter.setPen(pen);
+    symPainter.translate(0, fontSize + lineIndent + 2);
+    symPainter.drawText(x1, y1, sstm.str().c_str());
+
     for(int i=0 ; i<bestMatch.A.length ; i++){
         sstm.str("");
 
@@ -300,7 +316,7 @@ void RenderArea::drawDetailBoxBesideComparedFigure(dualCTData bestMatch, SymLine
     //symPainter.drawText(rect, Qt::AlignLeft, sstm.str().c_str());
 }
 
-void RenderArea::drawMatchedResult(dualCTData bestMatch, double result, int boxW, int boxH, int sym1X, int sym1Y, int sym2X, int sym2Y ){
+void getComparedSymLines(dualCTData bestMatch, SymLine *sym1Lines, SymLine *sym2Lines, int lineNum){
     MouseCtrl mc1 = MouseCtrl();
     MouseCtrl mc2 = MouseCtrl();
 
@@ -318,16 +334,11 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, double result, int boxW
     int AcclZeroC1[3] = {0, 0, 0};
     double velocity2[3] = {0, 0, 0};
     int AcclZeroC2[3] = {0, 0, 0};
-
-    int lineNum = bestMatch.A.length;
-
-    SymLine sym1Lines[lineNum];
-    SymLine sym2Lines[lineNum];
+    int accl[3] = {0,0,0};
 
     //由於不的match的地方都補0了 所以bestMatch A跟B長度是一樣的
     for(int i=0; i<lineNum ; i++){
         //借用移動滑鼠的object 但不真的移動滑鼠, 僅僅是用來算出各筆畫結束時的座標, 加速度不用設0
-        int accl[3] = {0,0,0};
         bool isMoved1 = mc1.moveCursor(accl, bestMatch.A.level[i], velocity1, AcclZeroC1, 10, false);
         bool isMoved2 = mc2.moveCursor(accl, bestMatch.B.level[i], velocity2, AcclZeroC2, 10, false);
 
@@ -359,9 +370,82 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, double result, int boxW
         sym2Lines[i].x2 = dx2;
         sym2Lines[i].y2 = dy2;
     }
+}
+SymLine * getTrajRawSymLines(trajData *data){
+    MouseCtrl mc = MouseCtrl();
+
+    //移動幅度(如果太小 很多筆畫可能會被四捨五入掉 導致完全不動)
+    //值設大一點 因為有boxlimit所以不影響
+    mc.gyroSensitivity = 250;
+
+    //畫擷取後特徵值的比較
+    int dx = 0, dy = 0;
+
+    //暫存移動時的資訊
+    double velocity[3] = {0, 0, 0};
+    int AcclZeroC[3] = {0, 0, 0};
+    int accl[3] = {0,0,0};
+
+    SymLine *symLines = new SymLine[data->length];
+
+    //由於不的match的地方都補0了 所以bestMatch A跟B長度是一樣的
+    for(int i=0; i<data->length ; i++){
+        //借用移動滑鼠的object 但不真的移動滑鼠, 僅僅是用來算出各筆畫結束時的座標, 加速度不用設0
+        bool isMoved = mc.moveCursor(accl, data->level[i], velocity, AcclZeroC, 10, false);
+
+        symLines[i].color = 'g';
+
+        //取得向量
+        symLines[i].x1 = dx;
+        symLines[i].y1 = dy;
+        dx = getRound(mc.getDx()/3.0*10);
+        dy = getRound(mc.getDy()/3.0*10);
+        symLines[i].x2 = dx;
+        symLines[i].y2 = dy;
+    }
+
+    return symLines;
+}
+void getProportionalSymOfsetAndScaleXY(int &offset1X, int &offset2X, int &offset1Y, int &offset2Y, double &scale1X, double &scale2X, double &scale1Y, double &scale2Y, double &fScaleX, double &fScaleY){
+    //如果直接照 框框的 比例縮放的話
+    //兩個大小相差非常非常多的字也會看起來 也會一樣大
+    //所以這邊scale的值 如果>1則取小的, 如果<1則取大的
+    //(因為正常來說讀到的值scale都是<1 所以直接取大)
+    offset1X *= 1/scale1X;
+    offset1Y *= 1/scale1Y;
+    offset2X *= 1/scale2X;
+    offset2Y *= 1/scale2Y;
+    //先把offset值還原
+    fScaleX = std::min(scale1X, scale2X);
+    fScaleY = std::min(scale1Y, scale2Y);
+    //取得最終版本的scale值
+    offset1X *= fScaleX;
+    offset1Y *= fScaleY;
+    offset2X *= fScaleX;
+    offset2Y *= fScaleY;
+}
+
+void RenderArea::drawMatchedResult(dualCTData bestMatch, trajData *temp, trajData *sample, double result, int boxW, int boxH, int sym1X, int sym1Y, int sym2X, int sym2Y ){
+
+    int lineNum = bestMatch.A.length;
+    SymLine sym1Lines[lineNum];
+    SymLine sym2Lines[lineNum];
+
+    getComparedSymLines(bestMatch, sym1Lines, sym2Lines, lineNum);
+
+    SymLine *tempSymLines = 0;
+    int tempSymLineNum    = 0;
+    SymLine *sampleSymLines = 0;
+    int sampleSymLineNum    = 0;
+    if(temp != 0 && sample != 0){
+        tempSymLines = getTrajRawSymLines(temp);
+        tempSymLineNum = temp->length;
+        sampleSymLines = getTrajRawSymLines(sample);
+        sampleSymLineNum = sample->length;
+    }
 
     if( lineNum > 0)
-    {//至少有一個筆才需要畫
+    {//至少有一筆特徵向量才需要畫
         int    offset1X, offset2X;
         int    offset1Y, offset2Y;
         double scale1X, scale2X;
@@ -369,27 +453,42 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, double result, int boxW
         transformSymbolIntoBoxSize(sym1Lines, lineNum, boxW, boxH, offset1X, offset1Y, scale1X, scale1Y);
         transformSymbolIntoBoxSize(sym2Lines, lineNum, boxW, boxH, offset2X, offset2Y, scale2X, scale2Y);
 
-        //如果直接照 框框的 比例縮放的話
-        //兩個大小相差非常非常多的字也會看起來 也會一樣大
-        //所以這邊scale的值 如果>1則取小的, 如果<1則取大的
-        //(因為正常來說讀到的值scale都是<1 所以直接取大)
-        offset1X *= 1/scale1X;
-        offset1Y *= 1/scale1Y;
-        offset2X *= 1/scale2X;
-        offset2Y *= 1/scale2Y;
-        //先把offset值還原
-        double fScaleX = std::min(scale1X, scale2X);
-        double fScaleY = std::min(scale1Y, scale2Y);
-        //取得最終版本的scale值
-        offset1X *= fScaleX;
-        offset1Y *= fScaleY;
-        offset2X *= fScaleX;
-        offset2Y *= fScaleY;
+        double fScaleX, fScaleY;
+        getProportionalSymOfsetAndScaleXY(offset1X, offset2X, offset1Y, offset2Y, scale1X, scale2X, scale1Y, scale2Y, fScaleX, fScaleY);
+
         //將symbol畫出
         drawSymbolWithSymLine(sym1Lines, lineNum, sym1X + offset1X, sym1Y + offset1Y, fScaleX, fScaleY);
         drawSymbolWithSymLine(sym2Lines, lineNum, sym2X + offset2X, sym2Y + offset2Y, fScaleX, fScaleY);
+        //將symbol用框框套起來
+        QPainter symPainter(this);
+        pen.setColor(QColor(155,155,155,155));
+        pen.setWidth(0);
+        symPainter.setPen(pen);
+        symPainter.drawRect(sym1X-5, sym1Y-5, boxW+10, boxH+10);
+        symPainter.drawRect(sym2X-5, sym2Y-5, boxW+10, boxH+10);
+        //在框框上方寫字
+        pen.setColor(QColor(0,0,0,255));
+        QFont font("標楷體");
+        font.setBold(true);
+        symPainter.setFont(font);
+        symPainter.setPen(pen);
+        symPainter.drawText(sym1X, sym1Y-10, tr("Template特徵向量(右圖為Raw Data)"));
+        symPainter.drawText(sym2X, sym2Y-10, tr("Sample特徵向量(右圖為Raw Data)"));
 
-        int figureRight = sym1X + boxW;
+
+        //畫raw symbol
+        int rawSymBoxW = boxW / 2;
+        int rawSymBoxH = boxH / 2;
+        if(tempSymLines != 0 && sampleSymLines != 0){
+            transformSymbolIntoBoxSize(tempSymLines, tempSymLineNum, rawSymBoxW, rawSymBoxH, offset1X, offset1Y, scale1X, scale1Y);
+            transformSymbolIntoBoxSize(sampleSymLines, sampleSymLineNum, rawSymBoxW, rawSymBoxH, offset2X, offset2Y, scale2X, scale2Y);
+            getProportionalSymOfsetAndScaleXY(offset1X, offset2X, offset1Y, offset2Y, scale1X, scale2X, scale1Y, scale2Y, fScaleX, fScaleY);
+
+            drawSymbolWithSymLine(tempSymLines, tempSymLineNum, sym1X + offset1X + boxW + 10, sym1Y + offset1Y, fScaleX, fScaleY);
+            drawSymbolWithSymLine(sampleSymLines, sampleSymLineNum, sym2X + offset2X + boxW + 10, sym2Y + offset2Y, fScaleX, fScaleY);
+        }
+
+        int figureRight = sym1X + boxW + rawSymBoxW;
         int figureTop   = sym1Y;
         int detailBoxLeftPadding = 25;
         int dBoxX1 = figureRight + detailBoxLeftPadding;
@@ -406,7 +505,6 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, double result, int boxW
 
 void RenderArea::paintEvent(QPaintEvent * /* event */)
 {
-
     if(isCompared == false){
         std::stringstream sstm;
         sstm << sampleDirPath.toStdString() << sampleCurFileCount << ".txt";
@@ -442,6 +540,8 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
                 temp   = readTrajDataFromFile(sstm.str());
             }
 
+            usedTemp   = temp;
+            usedSample = sample;
             bestMatchResult = compareTwoSymbol(temp, sample);
 
             //印出整個對齊結果
@@ -459,20 +559,14 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
 
     int w = 220, h = 220;
     //起始座標
-    int figuresUpDownPadding = 20;
+    int figuresUpDownPadding = 30;
     int sym1X = 20; int sym1Y = 20;
     int sym2X = 20; int sym2Y = sym1Y + h + figuresUpDownPadding;
 
     if(isNewResultValid){
-        QPainter symPainter(this);
-        pen.setColor(QColor(155,155,155,155));
-        pen.setWidth(0);
-        symPainter.setPen(pen);
 
-        symPainter.drawRect(sym1X-5, sym1Y-5, w+10, h+10);
-        symPainter.drawRect(sym2X-5, sym2Y-5, w+10, h+10);
+        drawMatchedResult(bestMatchResult, usedTemp, usedSample, result, w, h, sym1X, sym1Y, sym2X, sym2Y);
 
-        drawMatchedResult(bestMatchResult, result, w, h, sym1X, sym1Y, sym2X, sym2Y);
     }else{
         QPainter symPainter(this);
         pen.setColor(QColor(255,0,0,255));
@@ -484,10 +578,4 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
         symPainter.setFont( font );
         symPainter.drawText(sym1X, sym1Y, tr("Template或Sample為空,無法比較!"));
     }
-    /*painter.setRenderHint(QPainter::Antialiasing, false);
-    painter.setPen(palette().dark().color());
-    painter.setBrush(Qt::NoBrush);
-    painter.drawRect(QRect(0, 0, width() - 1, height() - 1));*/
-
-    //qDebug() << tr("Paint event done!");
 }

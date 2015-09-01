@@ -13,11 +13,13 @@ using namespace std;
 dualCTData compareTwoSymbol(trajData *temp, trajData *sample, double &similarity, bool printResult);
 
 void freeCT(ctData data){
-    delete[] data.count;
-    for(int i=0 ; i<data.length ; i++){
-        delete[] data.level[i];
+    if(data.length > 0){
+        delete[] data.count;
+        for(int i=0 ; i<data.length ; i++){
+            delete[] data.level[i];
+        }
+        delete[] data.level;
     }
-    delete[] data.level;
 }
 void freeDualCT(dualCTData dualData){
     freeCT(dualData.A);

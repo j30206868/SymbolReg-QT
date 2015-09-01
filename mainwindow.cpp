@@ -114,7 +114,7 @@ Window::Window()
 
     strokeSpinBox = new QSpinBox;
     strokeSpinBox->setRange(0, 1);
-    strokeLable = new QLabel(tr("Last Stroke:"));
+    strokeLable = new QLabel(tr("Focused Stroke:"));
     strokeLable->setBuddy(strokeSpinBox);
     connect(strokeSpinBox, SIGNAL(valueChanged(int)),
             this, SLOT(lastStrokeChanged()));
