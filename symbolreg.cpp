@@ -914,6 +914,19 @@ double getCorrOfAxisWithNoZero( intArray temp, intArray sample, int times )
     return corr;
 }
 
+void sumOfABSIntArrayABWithNoZero(intArray A, intArray B, int &aABSSum, int &bABSSum){
+    aABSSum = 0;
+    bABSSum = 0;
+
+    for(int i=0; i<A.length; i++){
+        if(A.values[i]!=0 && B.values[i]!=0)
+        {//該點AB皆不為0才算入sum理面
+            aABSSum += std::abs(A.values[i]);
+            bABSSum += std::abs(B.values[i]);
+        }
+    }
+}
+
 double meanOfABSIntA(intArray A){
     double mean = 0;
     for(int i=0; i<A.length; i++){
@@ -944,6 +957,34 @@ double unMatchedPercent(intArray FA, intArray SA){
         }
     }
     return percent;
+}
+double calcDiffCostRatioWithNotZero(intArray A, intArray B){
+    if(A.length == B.length){
+        int aABSSum = 0.0;
+        int bABSSum = 0.0;
+
+        sumOfABSIntArrayABWithNoZero(A, B, aABSSum, bABSSum);
+
+        double totalCostRatio = 0;
+        for(int i=0 ; i < A.length ; i++){
+            if(A.values[i]!=0 && B.values[i]!=0)
+            {//AB都不是0才做
+                int absDiff = std::abs(A.values[i] - B.values[i]);
+                int absMaxAB   = std::max(abs(A.values[i]),abs(B.values[i]));
+                double singleDiffRatio = absDiff / (double)absMaxAB;//maximum value can be 2 and minimum is 0
+                double aWeight = abs(A.values[i]) / (double)aABSSum;
+                double bWeight = abs(B.values[i]) / (double)bABSSum;
+                double singleWeight = (aWeight + bWeight) / 2.0;
+                double singleCostRatio = singleDiffRatio * singleWeight;
+                totalCostRatio += singleCostRatio;
+            }
+        }
+        totalCostRatio /= 2.0;//因為單筆diff ratio值介於0-2所以除以2
+        return totalCostRatio;
+    }else{
+        std::cout << "calcDiffRatioWithNotZero: A.length != B.lenght invalid, return 1 (1 means totally different)" << std::endl;
+        return 1;
+    }
 }
 dualIntArray fillSpaceWithZero(dualIntArray data){
     int ALen = data.A.length;
@@ -1027,48 +1068,6 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
         printf("   |     Temp      |    Sample     |     Dist      |	Type\n");
     }
 
-    double pX = getCorrOfAxisWithNoZero(tempIntA[0], sampleIntA[0], 1);
-    double pZ = getCorrOfAxisWithNoZero(tempIntA[2], sampleIntA[2], 1);
-    //double pDis = getCorrOfAxisWithNoZero(tempDis, sampleDis, 1);
-
-
-    double oX = pX;
-    double oZ = pZ;
-
-    pX = (pX - 0.5) * 10.0/5;
-    pZ = (pZ - 0.5) * 10.0/5;
-
-    if(printResult){
-        //printf(QObject::tr("處理前 correlation X:%.4f Z:%.4f\n").toLocal8Bit().data(), oX, oZ);
-        printf( QObject::tr("處理後corr(X:%.4f, pZ:%.4f) = 處理前(corr(X:%.4f, pZ:%.4f) - 0.5) * 10.0 / 5\n").toLocal8Bit().data(), pX, pZ, oX, oZ);
-    }
-
-    //px pz pdis都要介於-1~1之間
-    //避免如果某一軸真的非常非常不像 因此最差可以到-1
-    //if(pX < -1 || pX > 1)
-    //    pX = -1;
-    //if(pZ < -1 || pZ > 1)
-    //    pZ = -1;
-
-    double unmathcPX = unMatchedPercent(tempIntA[0], sampleIntA[0]);
-    double unmathcPZ = unMatchedPercent(tempIntA[2], sampleIntA[2]);
-    double ounmatchPX = unmathcPX;
-    double ounmatchPZ = unmathcPZ;
-
-    // enhance unmatch percent
-    enhanceUnmatchPercent(pX, unmathcPX);
-    enhanceUnmatchPercent(pZ, unmathcPZ);
-
-    pX = pX * (1 - unmathcPX);
-    pZ = pZ * (1 - unmathcPZ);
-
-    if(printResult){
-        printf("Primitive Unmatch percent: %.4f %.4f\n", ounmatchPX, ounmatchPZ);
-        printf("Enhanced  Unmatch percent: %.4f %.4f\n", unmathcPX, unmathcPZ);
-        printf(QObject::tr("若unmatch percent > 0.5 該軸相似度直接歸0 小於0.5值double\n").toLocal8Bit().data());
-        printf("Final correlation(%.4f, %.4f) = pv * (1 - unmatch)\n", pX, pZ);
-    }
-
     //計算X跟Z各自值的總和
     int tempTotalX = 0;
     int tempTotalZ = 0;
@@ -1080,17 +1079,69 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
         sampleTotalX += abs(Sample.level[i][0]);
         sampleTotalZ += abs(Sample.level[i][2]);
     }
-
+    //目前使用temp的值來計算xRatio跟zRatio
     double xRatio = (double)tempTotalX / (tempTotalX + tempTotalZ);
     double zRatio = (double)tempTotalZ / (tempTotalX + tempTotalZ);
 
+    //double pX = getCorrOfAxisWithNoZero(tempIntA[0], sampleIntA[0], 1);
+    //double pZ = getCorrOfAxisWithNoZero(tempIntA[2], sampleIntA[2], 1);
+    //double pDis = getCorrOfAxisWithNoZero(tempDis, sampleDis, 1);
+    double pX = 1 - calcDiffCostRatioWithNotZero(tempIntA[0], sampleIntA[0]);
+    double pZ = 1 - calcDiffCostRatioWithNotZero(tempIntA[2], sampleIntA[2]);
+    double pDis = 1 - calcDiffCostRatioWithNotZero(tempDis, sampleDis);
+
+    double oX = pX;
+    double oZ = pZ;
+    double oDis = pDis;
+
+    pX = (pX - 0.5) * 10.0/5;
+    pZ = (pZ - 0.5) * 10.0/5;
+    pDis = (pDis - 0.5) * 10.0/5;
+
+    if(printResult){
+        //printf(QObject::tr("處理前 correlation X:%.4f Z:%.4f\n").toLocal8Bit().data(), oX, oZ);
+        //printf( QObject::tr("處理後corr(X:%.4f, pZ:%.4f) = 處理前(corr(X:%.4f, pZ:%.4f) - 0.5) * 10.0 / 5\n").toLocal8Bit().data(), pX, pZ, oX, oZ);
+        printf( QObject::tr("處理後corr(X:%.4f, pZ:%.4f, pDis:%.4f) = 處理前(corr(oX:%.4f, oZ:%.4f, oDis:%.4f) - 0.5) * 10.0 / 5\n").toLocal8Bit().data(), pX, pZ, pDis, oX, oZ, oDis);
+        //printf( QObject::tr("corr(oX:%.4f, oZ:%.4f, oDis:%.4f)\n").toLocal8Bit().data(), pX, pZ, pDis);
+    }
+
+    //px pz pdis都要介於-1~1之間
+    //避免如果某一軸真的非常非常不像 因此最差可以到-1
+    //if(pX < -1 || pX > 1)
+    //    pX = -1;
+    //if(pZ < -1 || pZ > 1)
+    //    pZ = -1;
+
+    double unmathcPX   = unMatchedPercent(tempIntA[0], sampleIntA[0]);
+    double unmathcPZ   = unMatchedPercent(tempIntA[2], sampleIntA[2]);
+    double unmatchDis  = (xRatio*unmathcPX + zRatio*unmathcPZ);
+    double ounmatchPX  = unmathcPX;
+    double ounmatchPZ  = unmathcPZ;
+    double ounmatchDis = unmatchDis;
+
+    // enhance unmatch percent
+    enhanceUnmatchPercent(pX, unmathcPX);
+    enhanceUnmatchPercent(pZ, unmathcPZ);
+    enhanceUnmatchPercent(pDis, unmatchDis);
+
+    pX = pX * (1 - unmathcPX);
+    pZ = pZ * (1 - unmathcPZ);
+    pDis = pDis * (1 - unmatchDis);
+
+    if(printResult){
+        printf("Primitive Unmatch percent: %.4f %.4f %.4f\n", ounmatchPX, ounmatchPZ, ounmatchDis);
+        printf("Enhanced  Unmatch percent: %.4f %.4f %.4f\n", unmathcPX, unmathcPZ, unmatchDis);
+        printf(QObject::tr("若unmatch percent > 0.5 該軸相似度直接歸0 小於0.5值double\n").toLocal8Bit().data());
+        printf("Final correlation(%.4f, %.4f, %.4f) = pv * (1 - unmatch)\n", pX, pZ, pDis);
+    }
+
     //double comResult = (pX * xRatio + pZ * zRatio);
-    double comResult = (pX*xRatio + pZ*zRatio);
+    double comResult = (pX*xRatio + pZ*zRatio)*0.5 + (pDis)*0.5;
     if(printResult){
         printf("Temp x:%7d z:%d | Sample x:%7d z:%7d\n", tempTotalX, tempTotalZ, sampleTotalX, sampleTotalZ);
         printf( QObject::tr("目前使用Temp的x z總值比例作為pX, pZ所佔的比重(xRatio:%.4f, zRatio:%.4f)\n").toLocal8Bit().data(), xRatio, zRatio);
-        printf( QObject::tr("處理後 pX:%.4f pZ:%.4f\n").toLocal8Bit().data(), pX, pZ);
-        printf("Result = pX * xRatio + pZ * zRatio\n");
+        printf( QObject::tr("處理後 pX:%.4f pZ:%.4f pDis:%.4f\n").toLocal8Bit().data(), pX, pZ, pDis);
+        printf("Result = (pX * xRatio + pZ * zRatio)*0.5 + pDis*0.5\n");
         printf( QObject::tr("最終結果 %.4f\n").toLocal8Bit().data(), comResult);
         printf("----------------------------------------------------------\n");
     }
@@ -1464,14 +1515,16 @@ dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
     因為這樣的細微差距已經超出本演算法所預期的處理範圍
     故將之融合 減少不必要的誤判發生
     ********************/
-    //特徵值type差距在2以內的直接融合
-    isSameTypeLimit = 2;
+    //特徵值type差距在1以內的直接融合
+    //type該訂多少值得思考
+    //定在2會造成很多時候圓形被過度的簡化而嚴重失真
+    isSameTypeLimit = 1;
     mergeSimilarType(ctDataTemp);
     mergeSimilarType(ctDataSample);
 
     //刪除太小又無法merge的特徵值(XZ都小於平均5倍以上)
-    ctDataTemp   = removeNoisyFeature(ctDataTemp  , 5);
-    ctDataSample = removeNoisyFeature(ctDataSample, 5);
+    ctDataTemp   = removeNoisyFeature(ctDataTemp  , 3);
+    ctDataSample = removeNoisyFeature(ctDataSample, 3);
 
     //type差距在1以內才能match在一起
     isSameTypeLimit = 2;
