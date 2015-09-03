@@ -42,6 +42,7 @@
 #define WINDOW_H
 
 #include <QWidget>
+#include <QtWidgets>
 #include "mpu6050reader.h"
 
 class QCheckBox;
@@ -52,12 +53,27 @@ class QPushButton;
 
 class RenderArea;
 
+//private used functions
+int  getFileCount(QString fname);
+void addSelectBoxItemsByFileName(QComboBox *combox, QString fname);
+//private used functions
+
 class Window : public QWidget
 {
     Q_OBJECT
 
 public:
     Window();
+
+private:
+    //建構子
+    void         setWindowStyle();
+    void         createMyUi();
+    void         createExampleUi();
+    void         setMyUiProperty();
+    void         buildUiConnection();
+    void         addUiToMainLayout(QGridLayout *mainLayout);
+    MpuReader*   createMpuReader();
 
 private slots:
     void penChanged();
@@ -67,10 +83,8 @@ private slots:
     void mpu6050ReadingEnded();
     void updateSampleBox();
     void lastStrokeChanged();
-    void changeTempCurIdx(int nowIdx);
-
-private:
     void setRenderAreaLastStrokeBox(QSpinBox *spinBoxObj);
+    void changeTempCurIdx(int nowIdx);
 
 private:
     RenderArea *renderArea;
@@ -96,6 +110,7 @@ private:
     QCheckBox *transformationsCheckBox;
 
     QPushButton *readDataBtn;
+    QPushButton *makeNewSymBtn;
 
     MpuReader *mpuReader;
 

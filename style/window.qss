@@ -1,0 +1,53 @@
+QComboBox, QSpinBox, QPushButton{
+	background-color: qlineargradient(x1: 1, y1: 1, x2: 0, y2: 0.5,
+	stop: 0 #ffffff, stop: 1 #cccccc);
+}
+*[isReadingMPU6050='true']{
+	background-color: qlineargradient(x1: 0.5, y1: 1.1, x2: 0.5, y2: 0.9, x3: 0.5, y3: 0.85,
+	stop: 0 #e55, stop: 1 #eee, stop: 2 #eee);
+}
+*[isReadingMPU6050='false']{
+	background-color: #eee;
+}
+QPushButton {
+   color: black;
+   border-width: 1px;
+   border-color: #339;
+   border-style: solid;
+   border-radius: 7;
+   padding: 10px;
+   font-size: 14px;
+   padding-left: 10px;
+   padding-right: 10px;
+   min-width: 100px;
+   max-width: 150px;
+   min-height: 20px;
+}
+QPushButton:hover {
+   background-color: qlineargradient(x1: 1, y1: 1, x2: 0, y2: 0.5,
+									  stop: 0 #ffffff, stop: 1 #ffffff);
+}
+QPushButton:pressed {
+   background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 2, fx: 0.5, fy: 1, stop: 0 rgba(255,30,30,255), stop: 0.2 rgba(255,30,30,144), stop: 0.4 rgba(255,30,30,32));
+}
+QPushButton {
+   color: black;
+   border-width: 1px;
+   border-color: #339;
+   border-style: solid;
+   border-radius: 7;
+   padding: 10px;
+   font-size: 14px;
+   padding-left: 10px;
+   padding-right: 10px;
+   min-width: 100px;
+   max-width: 150px;
+   min-height: 20px;
+}
+QPushButton:hover {
+   background-color: qlineargradient(x1: 1, y1: 1, x2: 0, y2: 0.5,
+									  stop: 0 #ffffff, stop: 1 #ffffff);
+}
+QPushButton:pressed {
+   background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 2, fx: 0.5, fy: 1, stop: 0 rgba(255,30,30,255), stop: 0.2 rgba(255,30,30,144), stop: 0.4 rgba(255,30,30,32));
+}
