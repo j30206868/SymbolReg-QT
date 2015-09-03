@@ -4,8 +4,12 @@
 
 //IntArray處理
 void cleanIntA(intArray &data){
-    if(data.values != NULL)
+    if(data.values != NULL){
+        if(data.length > 0){
             delete[] data.values;
+            data.length = 0;
+        }
+    }
 }
 intArray copyIntA(intArray data){
     intArray newData;

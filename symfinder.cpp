@@ -15,7 +15,7 @@ SymbolMatch::SymbolMatch(std::string fPath, int sAmount){
     //Build symbol list
     symbols = new trajData*[symAmt];
     int symIdx = 0;	//SYMRECSTARTIDX可能從1開始, 因此symIdx要獨立自己算, 不能用i
-    int endIdx = symAmt + SYMRECSTARTIDX - 1;
+    int endIdx = getEndIdx();
     for(int i = SYMRECSTARTIDX ; i <= endIdx ; i++){
         sstm << fPath << i << ".txt";
         symbols[symIdx] = readTrajDataFromFile(sstm.str());
@@ -23,6 +23,14 @@ SymbolMatch::SymbolMatch(std::string fPath, int sAmount){
         symIdx++;
     }
 }
+void SymbolMatch::freeTemplates(int exceptionIdx){
+    for(int i = 0 ; i < symAmt ; i++){
+        if(i != exceptionIdx){
+            freePTraj(symbols[i]);
+        }
+    }
+}
+
 trajData *SymbolMatch::getSymbol(int idx){
     return symbols[idx];
 }
@@ -43,6 +51,9 @@ int SymbolMatch::findBestMatchedSym(trajData *sample, double *simiList){
     }
 
     return maxSimIdx;
+}
+int SymbolMatch::getEndIdx(){
+    return symAmt + SYMRECSTARTIDX - 1;
 }
 int SymbolMatch::getSymAmt(){
     return this->symAmt;

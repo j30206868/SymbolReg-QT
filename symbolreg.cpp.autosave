@@ -1466,6 +1466,7 @@ dualCTData getQuadrantEigen(trajData *temp, trajData *sample){
     resultCT.B = ctDataSample;
     return resultCT;
 }
+
 dualCTData getContinuousEigen(trajData *temp, trajData *sample){
     //取得象限特徵
     isSameTypeLimit = 1;
@@ -1487,6 +1488,7 @@ dualCTData getContinuousEigen(trajData *temp, trajData *sample){
     resultCT.B = ctDataSample;
     return resultCT;
 }
+
 dualCTData getBestMatchResult(dualCTData eigenPair){
     //type差距在2以內才能match在一起
     isSameTypeLimit = 2;

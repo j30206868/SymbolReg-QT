@@ -501,6 +501,11 @@ void RenderArea::drawMatchedResult(dualCTData bestMatch, trajData *temp, trajDat
         //給哪條line其實不影響, 因為兩條的color設定基本上是一樣的, 而drawDetailBoxBesideComparedFigure只會用到color
         drawDetailBoxBesideComparedFigure(bestMatch, sym1Lines, result, rect);
     }
+
+    if(tempSymLines != 0)
+        delete[] tempSymLines;
+    if(sampleSymLines != 0)
+        delete[] sampleSymLines;
 }
 
 void RenderArea::paintEvent(QPaintEvent * /* event */)
@@ -526,10 +531,14 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
                 SymbolMatch SymMatch = SymbolMatch(tempDirPath.toStdString(), tempFileAmount);
                 double *simiList = new double[SymMatch.getSymAmt()];
                 matchSymIdx = SymMatch.findBestMatchedSym(sample, simiList);
+
                 if(matchSymIdx != -1){
                     temp = SymMatch.getSymbol(matchSymIdx);
                     emit changeMainTempCurIdx(matchSymIdx);
                 }
+
+                //除理被選重的temp其它的記憶體空間都free掉
+                SymMatch.freeTemplates(matchSymIdx);
                 showMostSimilarTemp = false;//只秀第一次
             }
 
@@ -540,20 +549,26 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
                 temp   = readTrajDataFromFile(sstm.str());
             }
 
+            freePTraj(usedTemp);
+            freePTraj(usedSample);
             usedTemp   = temp;
             usedSample = sample;
-            bestMatchResult = compareTwoSymbol(temp, sample);
+            if(usedTemp->length > 0){
+                std::cout << "Final comparision" << std::endl;
+                bestMatchResult = compareTwoSymbol(temp, sample);
 
-            //印出整個對齊結果
-            result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, true);
-            std::cout << std::endl;
+                //印出整個對齊結果
+                result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, true);
+                std::cout << std::endl;
 
-            //更新筆數總數
-            lastStroke = bestMatchResult.A.length-1;
-            spinBoxObj->setRange(0, lastStroke);
-            spinBoxObj->setValue(lastStroke);
-            isNewResultValid = true;
+                //更新筆數總數
+                lastStroke = bestMatchResult.A.length-1;
+                spinBoxObj->setRange(0, lastStroke);
+                spinBoxObj->setValue(lastStroke);
+                isNewResultValid = true;
+            }
         }
+
         isCompared = true;
     }
 

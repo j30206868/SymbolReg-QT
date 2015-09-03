@@ -12,8 +12,10 @@ class SymbolMatch{
 
     public:
         SymbolMatch(std::string fPath, int sAmount);
+        void freeTemplates(int exception);
         trajData *getSymbol(int idx);
         int findBestMatchedSym(trajData *sample, double *simiList);
+        int getEndIdx();
         int getSymAmt();
 };
 

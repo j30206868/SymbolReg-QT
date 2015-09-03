@@ -6,12 +6,12 @@
 Bugs
 (ok)    1. 在讀取到空白的檔案時, 會造成crash
 (ok)    2. 由於新產生的符號 所存檔的檔案位置 是靠常理來推斷的(count + ".txt"為檔名) 若檔案產生失敗時, 在讀取過程可能會造成不可預期的錯誤
-        3. 讀取Temp trajdata如果為空 會crash (symfinder沒擋, renderArea paintevent那邊也沒擋)
-        4. 自動找到最相似的Temp後, 在main window的combobox顯示的temp path不會自動更正
+(ok)    3. 讀取Temp trajdata如果為空 會crash (symfinder沒擋, renderArea paintevent那邊也沒擋)
+(ok)    4. 自動找到最相似的Temp後, 在main window的combobox顯示的temp path不會自動更正
 (ok)    5. 相似度計算, correlation為負 且 unamtch percent > 0.5 會負負得正, 相似度會變超高
 (ok)    6. Temp Sample figure的scaleXY 會影響到左邊detail文字的位置
-        7. 學弟寫的一個符號三還符號四 在跟template比對時, 因為只有一筆對一筆, 沒法求得correlation造成nan的結果
-        8. 處理在畫畫跟match時產生的memory leak(temp sample symlines)
+(ok)    7. 學弟寫的一個符號三還符號四 在跟template比對時, 因為只有一筆對一筆, 沒法求得correlation造成nan的結果
+(ok)    8. 處理在畫畫跟match時產生的memory leak(temp sample symlines)
 重建度問題
     1. 學習部份問題很明顯
         時間久了寫不像 -> 以寫3來說 以前建的時候怎麼寫的現在早忘了 所以寫不像(上面是平的還是尖的差很多, 但寫的時候不會刻意去記)
@@ -29,7 +29,16 @@ Bugs
     4. 顯示出比對所花費的時間
     5. 嘗試將加速度計的值區分成幾個level 做為加權的倍數 乘上gyro值 看看效果如何
     6. 針對圓形的問題, 特別處理
-    7. 只區分成16個區域似乎不足, type設2模糊地區過大, type設1模糊地區過小
+        -> 判斷圖形是否大多由圓滑曲線構成
+        -> 判斷圖形複雜度是否可以接受(是否夠簡單)
+            -> (但只能用在單純的圓形上, 複雜的圖形如果把圓滑部分也這樣用, 特徵值不但會太多, 而且反而會有反效果)
+        -> 進行第二階段的相似度比較
+            -> 使用sumOfPNTrajWithContinueTypeV來抽取特徵值
+            -> mergeSimilarType的isSameTypeLimit值設0
+            -> 之後進行相似度比較
+
+    7. 針對直線橫線斜線的相似度判斷做處理
+        -> 只要在相似度判斷加入xzRatio的比值這項就能解決
 
 簡單學習機制
     1. 比對每次寫出的內容, 如果有大筆的特徵向量不吻合, 就把整筆額外記錄

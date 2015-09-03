@@ -253,12 +253,11 @@ Window::Window()
 
     //std::cout << "connect result: " << cR.d_ptr << std::endl;
 
-    setWindowTitle(tr("Basic Drawing"));
+    setWindowTitle(tr("軌跡辨識偵錯平台"));
 }
 
 void Window::changeTempCurIdx(int nowIdx){
     tempSelectBox->setCurrentIndex(nowIdx);
-    std::cout << "temp changed" << std::endl;
 }
 
 void Window::updateSampleBox(){

@@ -19,6 +19,7 @@ void freeCT(ctData data){
             delete[] data.level[i];
         }
         delete[] data.level;
+        data.length = 0;
     }
 }
 void freeDualCT(dualCTData dualData){
@@ -54,12 +55,61 @@ double* getABSMeanOfCTData(ctData data){
     return mean;
 }
 
+double* getABSMeanOfCTDataWithNoZero(ctData data, int &largest){
+    double *mean = new double[3];
+    mean[0] = 0;
+    mean[1] = 0;
+    mean[2] = 0;
+
+    largest = 0;
+
+    if(data.length > 0){
+        for(int axis=0 ; axis<=2 ; axis+=2){
+            int zeroC = 0;
+            for(int i=0 ; i<data.length ; i++){
+                int absv = abs(data.level[i][axis]);
+                mean[axis] += absv;
+                if(absv != 0)
+                    zeroC++;
+                if(absv > largest)
+                    largest = absv;
+            }
+            mean[axis] = mean[axis]/zeroC;
+        }
+    }
+    return mean;
+}
+
+int getABSLargestValueInAllAxis(ctData data){
+    int largest = 0;
+    for(int axis=0 ; axis<=2 ; axis+=2){
+        for(int i=0 ; i<data.length ; i++){
+            int absv = std::abs(data.level[i][axis]);
+            if( absv > largest )
+                largest = absv;
+        }
+    }
+    return largest;
+}
 //trajData處理
 int getLevel( int g )
 {
     int lv = getRound(g / 327.0);
     //printf("g=%d ; level=%d\n", g, lv);
     return lv;
+}
+void freePTraj(trajData *data){
+    if(data != 0){
+        if(data->length > 0){
+            for(int i=0 ; i < data->length ; i++){
+                delete[] data->level[i];
+            }
+            delete[] data->level;
+            data->length = 0;
+        }
+        delete data;
+        data = 0;
+    }
 }
 
 //讀入user輸入的trajData
@@ -93,7 +143,7 @@ bool recordNewSingleTrajData(trajData *data, int *accl)
 }
 
 trajData *readTrajDataFromFile(std::string fname){
-    std::cout << QObject::tr("開始讀入").toLocal8Bit().data() << fname << QObject::tr("資料...\n").toLocal8Bit().data();
+    //std::cout << QObject::tr("開始讀入").toLocal8Bit().data() << fname << QObject::tr("資料...\n").toLocal8Bit().data();
 
     //trajData *data = new trajData();
     //data.length = 0;
@@ -119,7 +169,7 @@ trajData *readTrajDataFromFile(std::string fname){
     }
     fin.close();
 
-    std::cout << QObject::tr("總共 ").toLocal8Bit().data() << idx << QObject::tr(" 筆特徵值").toLocal8Bit().data() << std::endl;
+    //std::cout << QObject::tr("總共 ").toLocal8Bit().data() << idx << QObject::tr(" 筆特徵值").toLocal8Bit().data() << std::endl;
 
     trajData *newData = new trajData(idx);
     for(int i=0 ;i<idx ; i++){

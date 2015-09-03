@@ -38,9 +38,12 @@ void freeCT(ctData data);
 void freeDualCT(dualCTData dualData);
 ctData getNewCTData(int newLen);
 double* getABSMeanOfCTData(ctData data);
+double* getABSMeanOfCTDataWithNoZero(ctData data, int &largest);
+int getABSLargestValueInAllAxis(ctData data);
 
 //trajData處理
 int getLevel( int g );
+void freePTraj(trajData *data);
 
 //讀入user輸入的trajData
 bool recordNewSingleTrajData(trajData *data, int *accl);
