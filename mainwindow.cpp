@@ -71,9 +71,17 @@ Window::Window()
     int nextSampleCount = lastSampleFileNum + 1;
 
     tempSelectBox->setCurrentIndex(10);
-    tempChanged();
     sampleSelectBox->setCurrentIndex(lastSampleIdx);
-    sampleChanged();
+
+    //指定用
+    tempSelectBox->setCurrentIndex(45);
+    sampleSelectBox->setCurrentIndex(46);
+    tempChanged();
+    sampleChanged(false);
+
+    //一般用
+    //tempChanged();
+    //sampleChanged();
 
     penChanged();
     antialiasingCheckBox->setChecked(true);

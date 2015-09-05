@@ -342,7 +342,7 @@ void getComparedSymLines(dualCTData bestMatch, SymLine *sym1Lines, SymLine *sym2
         bool isMoved1 = mc1.moveCursor(accl, bestMatch.A.level[i], velocity1, AcclZeroC1, 10, false);
         bool isMoved2 = mc2.moveCursor(accl, bestMatch.B.level[i], velocity2, AcclZeroC2, 10, false);
 
-        int emptyFlag = emptySide(bestMatch.A.level[i][0], bestMatch.A.level[i][2], bestMatch.B.level[i][0], bestMatch.B.level[i][2]);
+        int emptyFlag = checkEmptySide(bestMatch.A.level[i][0], bestMatch.A.level[i][2], bestMatch.B.level[i][0], bestMatch.B.level[i][2]);
         if(emptyFlag == EMP_NO_EMPTY)
         {//兩邊都有的筆畫
             //筆畫為綠色

@@ -684,7 +684,7 @@ dualIntArray getZoneBestMatch(intArray tempIntA, intArray sampleIntA, ctData &te
         exeState = EXEST_FULLMATCH;
         return OM;
     }else if(spFlag == SP_FLAG_WRONG_TYPE){
-        intArray newTemp = insertZero(tempIntA, spIdx);
+        intArray newTemp   = insertZero(tempIntA, spIdx);
         intArray newSample = insertZero(sampleIntA, spIdx);
 
         int fEp = -1;
@@ -710,7 +710,6 @@ dualIntArray getZoneBestMatch(intArray tempIntA, intArray sampleIntA, ctData &te
         if( (disPercent <= 0.1) && lenLimit == defaultLenLimit )
         {//若差距很微小, 且eP點的值不一樣, 則各自以此eP點為基礎 往下作一輪的Match看cost的差距
             //看看結尾是否一樣 若一樣則不需要比 隨便挑一個
-
 
             int *fVOfFirstM = getFourValueInDual(fEp, fEp, firstM.A, firstM.B, temp, sample);
             int *fVOfSecondM = getFourValueInDual(sEp, sEp, secondM.A, secondM.B, temp, sample);
@@ -966,8 +965,12 @@ double getCorrOfAxisWithNoZero( intArray temp, intArray sample, int times )
     //printf("coVariance:%.2f tSTD:%.2f sSTD:%.2f\n",coVariance, tSTD, sSTD );
 
     //取得correlation
-    corr = coVariance / (tSTD * sSTD);
-
+    double denominator = (tSTD * sSTD);
+    if(denominator != 0){
+        corr = coVariance / denominator;
+    }else{
+        corr = 0;
+    }
     return corr;
 }
 
@@ -1152,12 +1155,19 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
         return -1;
     }
 
-    //double pX = getCorrOfAxisWithNoZero(tempIntA[0], sampleIntA[0], 1);
-    //double pZ = getCorrOfAxisWithNoZero(tempIntA[2], sampleIntA[2], 1);
+    double pX;
+    double pZ;
     //double pDis = getCorrOfAxisWithNoZero(tempDis, sampleDis, 1);
-    double pX   = 1 - calcDiffCostRatioWithNotZero(tempIntA[0], sampleIntA[0]);
-    double pZ   = 1 - calcDiffCostRatioWithNotZero(tempIntA[2], sampleIntA[2]);
+    //double pX   = 1 - calcDiffCostRatioWithNotZero(tempIntA[0], sampleIntA[0]);
+    //double pZ   = 1 - calcDiffCostRatioWithNotZero(tempIntA[2], sampleIntA[2]);
     double pDis = 1 - calcDiffCostRatioWithNotZero(tempDis, sampleDis);
+    if(tempIntA->length == 1){
+        pX = pDis;
+        pZ = pDis;
+    }else{
+        pX = getCorrOfAxisWithNoZero(tempIntA[0], sampleIntA[0], 1);
+        pZ = getCorrOfAxisWithNoZero(tempIntA[2], sampleIntA[2], 1);
+    }
 
     double oX = pX;
     double oZ = pZ;
@@ -1216,7 +1226,7 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 //-1 => (x1,y1)為empty
 //-2  => (x2,y2)為empty
 //-3 => 皆empty
-int emptySide(int x1, int y1, int x2, int y2){
+int checkEmptySide(int x1, int y1, int x2, int y2){
     int result = 0;
     if(x1 == 0 && y1 == 0){
         result-=1;
@@ -1227,37 +1237,51 @@ int emptySide(int x1, int y1, int x2, int y2){
     return result;
 }
 
-int getUpperNonZeroIdx(ctData data, int idx){
+int getUpperNonZeroIdx(ctData targetSide, ctData emptySide, int limitLastIdx, int idx){
     //防止idx超出範圍
-    int sIdx = min(data.length, idx-1);
+    int sIdx = min(targetSide.length, idx-1);
     for(int i=sIdx; i>=0 ; i--){
-        if(data.level[i][0] != 0 || data.level[i][2] != 0)
-        {
-            return i;
+        //limitLastIdx表示該idx融合過了,所以改idx以前的都不找了
+        if(i <= limitLastIdx)
+            break;
+        //確定要merge的地方, temp跟sample是有match到的才能融合
+        int emptyFlag = checkEmptySide(targetSide.level[i][0], targetSide.level[i][2], emptySide.level[i][0], emptySide.level[i][2]);
+        if(emptyFlag == EMP_NO_EMPTY){
+            return i;//兩邊都有值
+        }else if(emptyFlag != EMP_BOTH_EMPTY){
+            break;//若一邊有值一邊為0就不用再找了
         }
     }
     return -1;
 }
 
-int getBelowNonZeroIdx(ctData data, int idx){
+int getBelowNonZeroIdx(ctData targetSide, ctData emptySide, int limitLastIdx, int idx){
     //防止idx小於0
     int sIdx = max(0, idx+1);
-    for(int i=sIdx ; i<data.length ; i++){
-        if(data.level[i][0] != 0 || data.level[i][2] != 0){
-            return i;
+
+    for(int i=sIdx ; i<targetSide.length ; i++){
+        //limitLastIdx表示該idx融合過了,所以改idx以前的都不找了
+        if(i <= limitLastIdx)
+            break;
+        //確定要merge的地方, temp跟sample是有match到的才能融合
+        int emptyFlag = checkEmptySide(targetSide.level[i][0], targetSide.level[i][2], emptySide.level[i][0], emptySide.level[i][2]);
+        if(emptyFlag == EMP_NO_EMPTY){
+            return i;//兩邊都有值
+        }else if(emptyFlag != EMP_BOTH_EMPTY){
+            break;//若一邊有值一邊為0就不用再找了
         }
     }
     return -1;
 }
 
-bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int idx){
+bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int limitLastIdx, int &idx){//如果merge成功idx會被改變
     int x=0, y=1, z=2;
 
     //先確定 target side 要被處理的特徵值之主軸是否符合融何條件(融合後是否有效益)
-    int minAxis = min(abs(targetSide.level[idx][x]), abs(targetSide.level[idx][z]));
-    double maxAxis = (double)max(abs(targetSide.level[idx][x]), abs(targetSide.level[idx][z]));
-    double ratio = minAxis / maxAxis;
-    printf("min(%d) / max(%.0f) = %f\n", minAxis, maxAxis, ratio);
+    //int minAxis = min(abs(targetSide.level[idx][x]), abs(targetSide.level[idx][z]));
+    //double maxAxis = (double)max(abs(targetSide.level[idx][x]), abs(targetSide.level[idx][z]));
+    //double ratio = minAxis / maxAxis;
+    //printf("min(%d) / max(%.0f) = %f\n", minAxis, maxAxis, ratio);
     //確定主軸與次要軸的比例是否划算
     /*if(ratio >= 0.5){
         return false;
@@ -1265,9 +1289,9 @@ bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int idx){
     int thisType = ctDataMergeV(targetSide.level[idx][x], targetSide.level[idx][z]);
 
     //找上下鄰近的特徵 看可否融合
-    int idxBuffer[2] = {getUpperNonZeroIdx(targetSide, idx),
-                        getBelowNonZeroIdx(targetSide, idx)};
-    printf("upidx:%d downidx:%d\n", idxBuffer[0], idxBuffer[1]);
+    int idxBuffer[2] = {getUpperNonZeroIdx(targetSide, emptySide, limitLastIdx, idx),
+                        getBelowNonZeroIdx(targetSide, emptySide, limitLastIdx, idx)};
+    //printf("upidx:%d downidx:%d\n", idxBuffer[0], idxBuffer[1]);
     for(int i=0 ; i<2 ; i++){
         int useIdx = idxBuffer[i];
         //確定useIdx不是-1
@@ -1276,7 +1300,7 @@ bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int idx){
         }
         //看type能否融合
         int useType = ctDataMergeV(targetSide.level[useIdx][x], targetSide.level[useIdx][z]);
-        printf("isSameType:%d, thistype:%d, usetype:%d\n", isSameTypeLimit, thisType, useType);
+        //printf("isSameType:%d, thistype:%d, usetype:%d\n", isSameTypeLimit, thisType, useType);
         if( !isSameType(thisType, useType) ){
             continue;//不能融合
         }
@@ -1293,7 +1317,8 @@ bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int idx){
             targetSide.level[useIdx][z] += targetSide.level[idx][z];
             targetSide.level[idx][x] = 0;
             targetSide.level[idx][z] = 0;
-            printf("融合\n");
+            idx = useIdx;//將指到的idx改到merge完的地方
+            //printf("融合\n");
             return true;
         //}
     }
@@ -1308,20 +1333,29 @@ void mergeContinuousSimilar(ctData &Temp, ctData &Sample){
     }
 
     int len = Temp.length;
+    //最多只能融合到lastIdx指到的下一個特徵(用來限制 不能多次融合)
+    int lastTIdx = -1;
+    int lastSIdx = -1;
     for(int i=0 ; i < len ; i++){
         //確定是否另一邊
-        int emptyFlag = emptySide(Temp.level[i][0], Temp.level[i][2], Sample.level[i][0], Sample.level[i][2]);
+        int emptyFlag = checkEmptySide(Temp.level[i][0], Temp.level[i][2], Sample.level[i][0], Sample.level[i][2]);
         //printf("i:%d ", i);
         //Temp empty
+        bool isMerged = false;
         if(emptyFlag == EMP_X1_EMPTY){
             //printf("Temp empty ");
-            mergePointWithNeighbor(Sample, Temp, i);
+            isMerged = mergePointWithNeighbor(Sample, Temp, lastSIdx, i);
+            if(isMerged)
+                lastSIdx = i;
+
         }
 
         //Sample empty
         if(emptyFlag == EMP_X2_EMPTY){
             //printf("Sample empty ");
-            mergePointWithNeighbor(Temp, Sample, i);
+            isMerged = mergePointWithNeighbor(Temp, Sample, lastTIdx, i);
+            if(isMerged)
+                lastTIdx = i;
         }
         //printf("\n");
     }
@@ -1441,57 +1475,54 @@ ctData removeNoisyFeature(ctData data, int th, int method){
     }
 }
 
-dualCTData getQuadrantEigen(trajData *temp, trajData *sample){
+ctData getQuadrantEigen(trajData *temp){
     //取得象限特徵
     isSameTypeLimit = 1;
     ctData ctDataTemp = sumOfPNTrajWithSign(*temp);
-    ctData ctDataSample = sumOfPNTrajWithSign(*sample);
-    //subsample(使數值變小)
-    subSampleEigen(ctDataTemp, 0.1);
-    subSampleEigen(ctDataSample, 0.1);
     //融合連續相似特徵
     isSameTypeLimit = 1;
     mergeSimilarType(ctDataTemp);
-    mergeSimilarType(ctDataSample);
     //刪除太小又無法merge的特徵值(XZ都小於平均3倍以上)
     ctDataTemp   = removeNoisyFeature(ctDataTemp  , 12, SYMREG_RMNOISE_BYLARGEST);
-    ctDataSample = removeNoisyFeature(ctDataSample, 12, SYMREG_RMNOISE_BYLARGEST);
     ctDataTemp   = removeNoisyFeature(ctDataTemp  , 3, SYMREG_RMNOISE_BYMEAN);
-    ctDataSample = removeNoisyFeature(ctDataSample, 3, SYMREG_RMNOISE_BYMEAN);
     //ctDataTemp   = removeNoisyFeature(ctDataTemp  , 5, SYMREG_RMNOISE_BYBOTH);
-    //ctDataSample = removeNoisyFeature(ctDataSample, 5, SYMREG_RMNOISE_BYBOTH);
     //放入DualCT
-    dualCTData resultCT;
-    resultCT.A = ctDataTemp;
-    resultCT.B = ctDataSample;
-    return resultCT;
+    return ctDataTemp;
 }
 
-dualCTData getContinuousEigen(trajData *temp, trajData *sample){
+ctData getContinuousEigen(trajData *temp){
     //取得象限特徵
     isSameTypeLimit = 1;
     ctData ctDataTemp = sumOfPNTrajWithContinueTypeV(*temp);
-    ctData ctDataSample = sumOfPNTrajWithContinueTypeV(*sample);
-    //subsample(使數值變小)
-    subSampleEigen(ctDataTemp, 0.1);
-    subSampleEigen(ctDataSample, 0.1);
     //融合連續相似特徵
+    isSameTypeLimit = 0;
+    mergeSimilarType(ctDataTemp);
     isSameTypeLimit = 1;
     mergeSimilarType(ctDataTemp);
-    mergeSimilarType(ctDataSample);
     //刪除太小又無法merge的特徵值(XZ都小於平均5倍以上)
+    ctDataTemp   = removeNoisyFeature(ctDataTemp  , 12, SYMREG_RMNOISE_BYLARGEST);
     ctDataTemp   = removeNoisyFeature(ctDataTemp  , 3, SYMREG_RMNOISE_BYMEAN);
-    ctDataSample = removeNoisyFeature(ctDataSample, 3, SYMREG_RMNOISE_BYMEAN);
+    //ctDataTemp   = removeNoisyFeature(ctDataTemp, 3, SYMREG_RMNOISE_BYMEAN);
     //放入DualCT
-    dualCTData resultCT;
-    resultCT.A = ctDataTemp;
-    resultCT.B = ctDataSample;
-    return resultCT;
+    return ctDataTemp;
+}
+
+double getTempPowerOfSample(double *tMean, double *sMean){
+    double xPower = tMean[0] / sMean[0];
+    double zPower = tMean[2] / sMean[2];
+
+    double tXRatio = tMean[0] / (tMean[0] + tMean[2]);
+    double sXRatio = sMean[0] / (sMean[0] + sMean[2]);
+    double xRatio  = (tXRatio + sXRatio) / 2;
+    double zRatio  = 1 - xRatio;
+
+    return xPower * xRatio + zPower * zRatio;
+    //return (xPower + zPower) / 2;
 }
 
 dualCTData getBestMatchResult(dualCTData eigenPair){
     //type差距在2以內才能match在一起
-    isSameTypeLimit = 2;
+    isSameTypeLimit = 1;
     //轉換成intArray
     intArray tempMerge = ctDataMergeXZToIntA(eigenPair.A);
     intArray sampleMerge = ctDataMergeXZToIntA(eigenPair.B);
@@ -1503,11 +1534,28 @@ dualCTData getBestMatchResult(dualCTData eigenPair){
     dualCTData resultCT;
     resultCT.A = ctDataRecoverXZFromIntA(eigenPair.A, bestMatch.A);
     resultCT.B = ctDataRecoverXZFromIntA(eigenPair.B, bestMatch.B);
+    //後處理
+    isSameTypeLimit = 2;
+    mergeContinuousSimilar(resultCT.A, resultCT.B);
+
     return resultCT;
 }
 
 dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
-    dualCTData eigenPair   = getQuadrantEigen(temp, sample);
+    dualCTData eigenPair;
+    eigenPair.A = getContinuousEigen(temp);
+    eigenPair.B = getContinuousEigen(sample);
+    //計算temp(A) sample(B)的大小差距倍數
+    double *tempMean    = getABSMeanOfCTData(eigenPair.A);
+    double *samplepMean = getABSMeanOfCTData(eigenPair.B);
+    //subsample(使數值變小)
+    double power = getTempPowerOfSample(tempMean, samplepMean);
+    //如果有做affine transform就不需要了
+    subSampleEigen(eigenPair.A, 0.1);
+    subSampleEigen(eigenPair.B, 0.1 * power);
+    //std::cout << QObject::tr("Temp是Sample的 ").toLocal8Bit().data() << power;
+    //std::cout << QObject::tr(" 倍大").toLocal8Bit().data() << std::endl;
+
     dualCTData matchedPair = getBestMatchResult(eigenPair);
     freeDualCT(eigenPair);
     return matchedPair;

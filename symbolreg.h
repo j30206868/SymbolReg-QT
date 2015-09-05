@@ -84,7 +84,7 @@ const int EMP_NO_EMPTY   =  0;
 const int EMP_X1_EMPTY   = -1;
 const int EMP_X2_EMPTY   = -2;
 const int EMP_BOTH_EMPTY = -3;
-int emptySide(int x1, int y1, int x2, int y2);
+int checkEmptySide(int x1, int y1, int x2, int y2);
 
 void mergeContinuousSimilar(ctData &Temp, ctData &Sample);
 void subSampleEigen(ctData &data, double sampleRate);
