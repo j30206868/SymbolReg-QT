@@ -63,7 +63,7 @@ ctData ctDataRecoverXZFromIntA(ctData &originCT, intArray intA);
 //Compare similarity
 intArray ctDataXZDistance(ctData data);
 intArray* ctDataToIntA(ctData data);
-double getCorrOfAxisWithNoZero( intArray temp, intArray sample, int times );
+double getCorrOfAxisWithNoZero( intArray temp, intArray sample, double times );
 
 double meanOfABSIntA(intArray A);
 double unMatchedPercent(intArray FA, intArray SA);

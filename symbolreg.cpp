@@ -374,6 +374,9 @@ int getDisOfXZCT(intArray &tempIntA, intArray &sampleIntA, ctData &temp, ctData 
     int distance = 0;
     int tempZC = 0;
     int sampleZC = 0;
+
+    eP+=1;
+
     for(int idx=0 ; idx < maxL ; idx++)
     {
         //還沒道start point只要計算zero count就好
@@ -713,7 +716,7 @@ intArray* ctDataToIntA(ctData data){
     }
     return newData;
 }
-double getCorrOfAxisWithNoZero( intArray temp, intArray sample, int times )
+double getCorrOfAxisWithNoZero( intArray temp, intArray sample, double times )
 {
     int length = temp.length;
     double tMean=0, sMean=0;
@@ -763,19 +766,19 @@ double getCorrOfAxisWithNoZero( intArray temp, intArray sample, int times )
     }
     length -= zeroC;
     //printf("\n");
-    if( length > 1){
+    /*if( length > 1){
         tSTD = sqrt( (double)tDistance / (length-1) );
         sSTD = sqrt( (double)sDistance / (length-1) );
         coVariance = (double)coDistance / (length-1);
-    }else{
+    }else{*/
         //取得的樣本數長度只有1
         tSTD = sqrt( (double)tDistance / (length) );
         sSTD = sqrt( (double)sDistance / (length) );
         coVariance = (double)coDistance / (length );
-    }
-    //printf("coDistance:%.2f tDistance:%.2f sDistance:%.2f\n",coDistance, tDistance, sDistance );
-    //printf("Length:%d tMean:%.2f sMean:%.2f\n",length, tMean, sMean );
-    //printf("coVariance:%.2f tSTD:%.2f sSTD:%.2f\n",coVariance, tSTD, sSTD );
+    //}
+    printf("coDistance:%.2f tDistance:%.2f sDistance:%.2f\n",coDistance, tDistance, sDistance );
+    printf("Length:%d tMean:%.2f sMean:%.2f\n",length, tMean, sMean );
+    printf("coVariance:%.2f tSTD:%.2f sSTD:%.2f\n",coVariance, tSTD, sSTD );
 
     //取得correlation
     double denominator = (tSTD * sSTD);
@@ -915,11 +918,37 @@ void enhanceUnmatchPercent(double &cvalue, double &unmatchPercent){
 }
 double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
+    //計算X跟Z各自值的總和
+    int tempTotalX = 0;
+    int tempTotalZ = 0;
+    int sampleTotalX = 0;
+    int sampleTotalZ = 0;
+    for(int i=0 ; i < Temp.length ; i++){
+        tempTotalX += abs(Temp.level[i][0]);
+        tempTotalZ += abs(Temp.level[i][2]);
+        sampleTotalX += abs(Sample.level[i][0]);
+        sampleTotalZ += abs(Sample.level[i][2]);
+    }
+    //目前使用temp的值來計算xRatio跟zRatio
+    double xRatio = (double)tempTotalX / (tempTotalX + tempTotalZ);
+    double zRatio = 1 - xRatio;
+
+    //後處理前計算unmatch
+    intArray bpTempDis   = ctDataXZDistance(Temp);
+    intArray bpSampleDis = ctDataXZDistance(Sample);
+
+    intArray *bpTempIntA   = ctDataToIntA(Temp);
+    intArray *bpSampleIntA = ctDataToIntA(Sample);
+
+    double ounmatchPX   = unMatchedPercent(bpTempIntA[0], bpSampleIntA[0]);
+    double ounmatchPZ   = unMatchedPercent(bpTempIntA[2], bpSampleIntA[2]);
+    double ounmatchDis  = (xRatio*ounmatchPX + zRatio*ounmatchPZ);
+
     //後處理
     //rematch(該被match在一起沒有match的,或是較相似應該被match在一起卻被錯誤match到旁邊其他特徵值的)
     //處理直線跟圓滑曲線的問題
-    //isSameTypeLimit = 2;
-    //mergeContinuousSimilar(resultCT.A, resultCT.B);
+    isSameTypeLimit = 2;
+    mergeContinuousSimilar(Temp, Sample);
     //dematch(特徵值差距太大的不能match在一起)
     //resultCT = dematch(resultCT.A, resultCT.B);
 
@@ -950,20 +979,7 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
         printf("   |     Temp      |    Sample     |     Dist      |	Type\n");
     }
 
-    //計算X跟Z各自值的總和
-    int tempTotalX = 0;
-    int tempTotalZ = 0;
-    int sampleTotalX = 0;
-    int sampleTotalZ = 0;
-    for(int i=0 ; i < Temp.length ; i++){
-        tempTotalX += abs(Temp.level[i][0]);
-        tempTotalZ += abs(Temp.level[i][2]);
-        sampleTotalX += abs(Sample.level[i][0]);
-        sampleTotalZ += abs(Sample.level[i][2]);
-    }
-    //目前使用temp的值來計算xRatio跟zRatio
-    double xRatio = (double)tempTotalX / (tempTotalX + tempTotalZ);
-    double zRatio = 1 - xRatio;
+
 
     /********** XZRatio的前置比對(防止直線斜線橫線的mismatsh) **************/
     double sampleXRatio = (double)sampleTotalX / (sampleTotalX + sampleTotalZ);
@@ -975,27 +991,27 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
         return -1;
     }
 
-    double pX;
-    double pZ;
+    //double pX;
+    //double pZ;
     //double pDis = getCorrOfAxisWithNoZero(tempDis, sampleDis, 1);
-    //double pX   = 1 - calcDiffCostRatioWithNotZero(tempIntA[0], sampleIntA[0]);
-    //double pZ   = 1 - calcDiffCostRatioWithNotZero(tempIntA[2], sampleIntA[2]);
+    double pX   = 1 - calcDiffCostRatioWithNotZero(tempIntA[0], sampleIntA[0]);
+    double pZ   = 1 - calcDiffCostRatioWithNotZero(tempIntA[2], sampleIntA[2]);
     double pDis = 1 - calcDiffCostRatioWithNotZero(tempDis, sampleDis);
-    if(tempIntA->length == 1){
+    /*if(tempIntA->length == 1){
         pX = pDis;
         pZ = pDis;
     }else{
         pX = getCorrOfAxisWithNoZero(tempIntA[0], sampleIntA[0], 1);
-        pZ = getCorrOfAxisWithNoZero(tempIntA[2], sampleIntA[2], 1);
-    }
+        pZ = getCorrOfAxisWithNoZero(tempIntA[2], sampleIntA[2], 01);
+    }*/
 
     double oX = pX;
     double oZ = pZ;
     double oDis = pDis;
 
-    pX = (pX - 0.5) * 10.0/5;
-    pZ = (pZ - 0.5) * 10.0/5;
-    pDis = (pDis - 0.5) * 10.0/5;
+    //pX = (pX - 0.5) * 10.0/5;
+    //pZ = (pZ - 0.5) * 10.0/5;
+    //pDis = (pDis - 0.5) * 10.0/5;
 
     if(printResult){
         //printf(QObject::tr("處理前 correlation X:%.4f Z:%.4f\n").toLocal8Bit().data(), oX, oZ);
@@ -1006,12 +1022,9 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
     //px pz pdis都要介於-1~1之間
     //避免如果某一軸真的非常非常不像 因此最差可以到-1
-    double unmathcPX   = unMatchedPercent(tempIntA[0], sampleIntA[0]);
-    double unmathcPZ   = unMatchedPercent(tempIntA[2], sampleIntA[2]);
-    double unmatchDis  = (xRatio*unmathcPX + zRatio*unmathcPZ);
-    double ounmatchPX  = unmathcPX;
-    double ounmatchPZ  = unmathcPZ;
-    double ounmatchDis = unmatchDis;
+    double unmathcPX   = (unMatchedPercent(tempIntA[0], sampleIntA[0]) + ounmatchPX) / 2.0;
+    double unmathcPZ   = (unMatchedPercent(tempIntA[2], sampleIntA[2]) + ounmatchPZ) / 2.0;
+    double unmatchDis  = ((xRatio*unmathcPX + zRatio*unmathcPZ) + ounmatchDis) / 2.0;
 
     // enhance unmatch percent
     enhanceUnmatchPercent(pX, unmathcPX);
