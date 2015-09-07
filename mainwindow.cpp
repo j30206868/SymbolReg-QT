@@ -74,8 +74,8 @@ Window::Window()
     sampleSelectBox->setCurrentIndex(lastSampleIdx);
 
     //指定用
-    tempSelectBox->setCurrentIndex(41);
-    sampleSelectBox->setCurrentIndex(41);
+    tempSelectBox->setCurrentIndex(51);
+    sampleSelectBox->setCurrentIndex(45);
     tempChanged();
     sampleChanged(false);
 

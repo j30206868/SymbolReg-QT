@@ -35,12 +35,10 @@ intArray splitAsInt(std::string str, std::string delimiter);
 
 double trajAxisPeriodABSMean(trajData &data, int axis, int sP, int eP, bool includeZero);
 double trajAxisPeriodABSSTD(trajData &data, int axis, double mean, int sP, int eP, bool includeZero);
-void cleanNotImportant(trajData &data, int axis, int sP, int cC, int endIdx);
-bool cleanCCUnder10(trajData &data, int axis, int cTh, int avgTh, int endIdx, int cC, int zeroC, int sum);
-void removeTail(trajData &data);
-ctData sumOfPNTrajWithSign(trajData &data);
 
-int newCTDataMergeV(int v1, int v2);
+ctData sumOfPNTrajWithSign(trajData &data);
+ctData sumOfPNTrajWithContinueTypeV(trajData &data);
+
 int ctDataMergeV(int v1, int v2);
 
 intArray ctDataMergeXZToIntA(ctData data);

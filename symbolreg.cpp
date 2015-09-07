@@ -85,96 +85,6 @@ double trajAxisPeriodABSSTD(trajData &data, int axis, double mean, int sP, int e
 
     return std;
 }
-void cleanNotImportant(trajData &data, int axis, int sP, int cC, int endIdx){
-    double mean = trajAxisPeriodABSMean(data, axis, sP, (sP+cC), false);
-    double std = abs( getRound(trajAxisPeriodABSSTD(data, axis, mean, sP, (sP+cC), false)) );
-    double th = mean - (std/2);
-    for(int inIdx = endIdx-1; inIdx >= (endIdx-cC) ; inIdx--){
-        if(th > abs(data.level[inIdx][axis])){
-            data.level[inIdx][axis] = 0;
-            //printf( "[%d].[%d]=>0 ", axis, inIdx+1);
-        }
-    }
-}
-bool cleanCCUnder10(trajData &data, int axis, int cTh, int avgTh, int endIdx, int cC, int zeroC, int sum){
-    double avg = 0;
-    bool isCleaned = false;
-    if(cC < cTh){
-        cC = cC - zeroC;
-        if(sum!=0 && cC>0)
-            avg = abs(sum) / (double)cC;//不考慮正負
-
-        if(avg < avgTh || cC <= getRound(cTh/2.0))
-        {//將資料區段歸0 (這個值之前的舊資料區段)
-            isCleaned = true;
-            for(int inIdx = endIdx-1; inIdx >= endIdx-(cC+zeroC) ; inIdx--){
-                data.level[inIdx][axis] = 0;
-            }
-        }
-    }
-    return isCleaned;
-}
-void removeTail(trajData &data){
-    int cTh = 8;
-    int avgTh = 8;
-    int x=0, z=2;
-
-    for(int axis=0 ; axis<=2; axis+=2){
-        int sP = 0;
-        int cC = 0;
-        int sign = 0;
-        int sum = 0;
-        int zeroC = 0;
-
-        for(int i=0 ; i<data.length ; i++){
-            if( data.level[i][axis] == 0){
-                zeroC++;
-            }
-
-            bool isCleaned = false;
-
-            if( !isEqualSign(data.level[i][axis], sign) ){
-                //碰到斷點, 統計整個連續資料區段
-                //資料區段太小則歸0
-                //printf("%d %d %d %d %d %d %d %d\n", data.level[i][axis], axis, cTh, avgTh, i, cC, zeroC, sum);
-                isCleaned = cleanCCUnder10(data, axis, cTh, avgTh, i, cC, zeroC, sum);
-
-                isCleaned = true;
-
-                //將資料區段中, 小於門檻的值歸0
-                //printf("%d to %d mean=%.2f std=%.2f", i, (i-cC)+1, mean, std);
-                if(!isCleaned)
-                {//若資料區段大小超過門檻被保留, 則消除不重要的值
-                    cleanNotImportant(data, axis, sP, cC, i);
-                }
-                //printf("\n");
-                cC = 0;
-                sign = 0;
-                zeroC = 0;
-                sum = 0;
-            }
-            if(sign == 0)
-                sign = getSign(data.level[i][axis]);
-
-            sum += data.level[i][axis];
-
-            if(cC == 0)
-                sP = i;
-            cC++;
-        }
-        //處理最後一筆
-        //bool isCleaned = false;
-        bool isCleaned = cleanCCUnder10(data, axis, cTh, avgTh, data.length, cC, zeroC, sum);
-
-        isCleaned = true;
-
-        if(!isCleaned)
-        {//若資料區段大小超過門檻被保留, 則消除不重要的值
-            cleanNotImportant(data, axis, sP, cC, data.length);
-        }
-    }
-
-}
 ctData sumOfPNTrajWithSign(trajData &data)
 {//將正負波各自加總
     int buffer[2000][3] = {0};
@@ -320,8 +230,8 @@ ctData sumOfPNTrajWithContinueTypeV(trajData &data)
         //system("PAUSE");
 
         bool isSame = true;
-        //if(!isSameType(newType, lastType))
-        if( newType != lastType )
+        if(!isSameType(newType, lastType))
+        //if( newType != lastType )
         {//不同type
             idx++;
             lastType = newType;
@@ -353,19 +263,6 @@ ctData sumOfPNTrajWithContinueTypeV(trajData &data)
     }
 
     return newData;
-}
-
-int newCTDataMergeV(int v1, int v2){
-    if(v1 == 0 && v2 == 0){
-        return -1;//不合法輸入
-    }
-    int degree = getRound(atan2(v1, v2*-1) * 57.2957);
-    if(degree < 0){
-        degree = 360 - (0 - degree);
-    }
-    return degree;
-    //return getRound(atan2(v1, v2*-1) * 57.2957);
-    //return getRound(atan(ratio) * 57.2957) * angleSign + base;
 }
 
 int ctDataMergeV(int v1, int v2){
@@ -803,7 +700,6 @@ intArray ctDataXZDistance(ctData data){
 
     return newData;
 }
-
 intArray* ctDataToIntA(ctData data){
     intArray *newData = new intArray[3];
 
@@ -817,7 +713,6 @@ intArray* ctDataToIntA(ctData data){
     }
     return newData;
 }
-
 double getCorrOfAxisWithNoZero( intArray temp, intArray sample, int times )
 {
     int length = temp.length;
@@ -1020,6 +915,14 @@ void enhanceUnmatchPercent(double &cvalue, double &unmatchPercent){
 }
 double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
+    //後處理
+    //rematch(該被match在一起沒有match的,或是較相似應該被match在一起卻被錯誤match到旁邊其他特徵值的)
+    //處理直線跟圓滑曲線的問題
+    //isSameTypeLimit = 2;
+    //mergeContinuousSimilar(resultCT.A, resultCT.B);
+    //dematch(特徵值差距太大的不能match在一起)
+    //resultCT = dematch(resultCT.A, resultCT.B);
+
     intArray tempDis = ctDataXZDistance(Temp);
     intArray sampleDis = ctDataXZDistance(Sample);
 
@@ -1036,7 +939,7 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
             printf("| %6d %6d | %6d %6d |",tempIntA[0].values[idx], tempIntA[2].values[idx], sampleIntA[0].values[idx], sampleIntA[2].values[idx]);
 
-            printf(" %6d %6d | %6d %6d", tempDis.values[idx], sampleDis.values[idx], newCTDataMergeV(Temp.level[Midx][0], Temp.level[Midx][2]), newCTDataMergeV(Sample.level[Midx][0], Sample.level[Midx][2]));
+            printf(" %6d %6d | %6d %6d", tempDis.values[idx], sampleDis.values[idx], ctDataMergeV(Temp.level[Midx][0], Temp.level[Midx][2]), ctDataMergeV(Sample.level[Midx][0], Sample.level[Midx][2]));
 
             if( tempIntA[0].values[idx] == 0 && tempIntA[2].values[idx] == 0)
                 tempZeroC++;
@@ -1191,15 +1094,6 @@ int getBelowNonZeroIdx(ctData targetSide, ctData emptySide, int limitLastIdx, in
 bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int limitLastIdx, int &idx){//如果merge成功idx會被改變
     int x=0, y=1, z=2;
 
-    //先確定 target side 要被處理的特徵值之主軸是否符合融何條件(融合後是否有效益)
-    //int minAxis = min(abs(targetSide.level[idx][x]), abs(targetSide.level[idx][z]));
-    //double maxAxis = (double)max(abs(targetSide.level[idx][x]), abs(targetSide.level[idx][z]));
-    //double ratio = minAxis / maxAxis;
-    //printf("min(%d) / max(%.0f) = %f\n", minAxis, maxAxis, ratio);
-    //確定主軸與次要軸的比例是否划算
-    /*if(ratio >= 0.5){
-        return false;
-    }*/
     int thisType = ctDataMergeV(targetSide.level[idx][x], targetSide.level[idx][z]);
 
     //找上下鄰近的特徵 看可否融合
@@ -1213,28 +1107,20 @@ bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int limitLastI
             continue;
         }
         //看type能否融合
-        int useType = ctDataMergeV(targetSide.level[useIdx][x], targetSide.level[useIdx][z]);
+        int useType = ctDataMergeV(emptySide.level[useIdx][x], emptySide.level[useIdx][z]);
         //printf("isSameType:%d, thistype:%d, usetype:%d\n", isSameTypeLimit, thisType, useType);
         if( !isSameType(thisType, useType) ){
             continue;//不能融合
         }
-        //看看cost是否合理
-        /*int originXCost = emptySide.level[useIdx][x] - targetSide.level[useIdx][x];
-        int originZCost = emptySide.level[useIdx][z] - targetSide.level[useIdx][z];
-        int newXCost    = originXCost - targetSide.level[idx][x];
-        int newZCost    = originZCost - targetSide.level[idx][z];
-        double xIncreace = abs(newXCost / originXCost);
-        double zIncreace = abs(newZCost / originZCost);
-        if(xIncreace>=0.5 || zIncreace>=0.5)
-        {//融合*/
-            targetSide.level[useIdx][x] += targetSide.level[idx][x];
-            targetSide.level[useIdx][z] += targetSide.level[idx][z];
-            targetSide.level[idx][x] = 0;
-            targetSide.level[idx][z] = 0;
-            idx = useIdx;//將指到的idx改到merge完的地方
-            //printf("融合\n");
-            return true;
-        //}
+
+        targetSide.level[useIdx][x] += targetSide.level[idx][x];
+        targetSide.level[useIdx][z] += targetSide.level[idx][z];
+        targetSide.level[idx][x] = 0;
+        targetSide.level[idx][z] = 0;
+        idx = useIdx;//將指到的idx改到merge完的地方
+        //printf("融合\n");
+        return true;
+
     }
     return false;
 }
@@ -1273,6 +1159,124 @@ void mergeContinuousSimilar(ctData &Temp, ctData &Sample){
         //printf("\n");
     }
 }
+//dematch處理
+double singleCost(int tX, int tZ, int sX, int sZ){
+
+    int totalT = abs(tX) + abs(tZ);
+    int totalS = abs(sX) + abs(sZ);
+
+    double tXPercent = abs(tX) / (double)totalT;
+    double sXPercent = abs(sX) / (double)totalS;
+
+    double fXRatio = (tXPercent + sXPercent) / 2.0;
+    double fZRatio = 1 - fXRatio;
+
+    double xCost = (double)abs(tX - sX) / abs(max(tX, sX));
+    double zCost = (double)abs(tZ - sZ) / abs(max(tZ, sZ));
+
+    if(fXRatio <= 0.25){
+        std::cout << "return zCost" << std::endl;
+        return zCost;
+    }else if(fZRatio <= 0.25){
+        std::cout << "return xCost" << std::endl;
+        return xCost;
+    }else{
+        std::cout << "return both axis cost" << std::endl;
+        return (xCost*fXRatio + zCost*fZRatio) / 2.0;
+    }
+    /*int totalT = abs(tX) + abs(tZ);
+    int totalS = abs(sX) + abs(sZ);
+    double cost = abs(totalT - totalS) / (double)abs(max(totalT, totalS));
+    return cost;*/
+    /*
+    int totalT = abs(tX) + abs(tZ);
+    int totalS = abs(sX) + abs(sZ);
+
+    double tXPercent = abs(tX) / (double)totalT;
+    double sXPercent = abs(sX) / (double)totalS;
+
+    double fXRatio = (tXPercent + sXPercent) / 2.0;
+    double fZRatio = 1 - fXRatio;
+
+    double xCost = (double)abs(tX - sX) / abs(max(tX, sX)) * fXRatio;
+    double zCost = (double)abs(tZ - sZ) / abs(max(tZ, sZ)) * fZRatio;
+
+    return xCost + zCost;*/
+}
+dualCTData dematch(ctData &Temp, ctData &Sample){
+    if(Temp.length != Sample.length){
+        printf("dematch: error, temp and sample has different length.\n");
+        system("PAUSE");
+    }
+    int invalidNum = 32768;
+    int invalidSum = 131072;
+    int buffer[Temp.length][4];
+    double thRatio = 0.6;
+    int len = Temp.length;
+    int dematchCount = 0;
+    for(int i=0 ; i < len ; i++){
+        //確定是否另一邊
+        int emptyFlag = checkEmptySide(Temp.level[i][0], Temp.level[i][2], Sample.level[i][0], Sample.level[i][2]);
+        if(emptyFlag == EMP_NO_EMPTY){
+            double cost = singleCost(Temp.level[i][0], Temp.level[i][2], Sample.level[i][0], Sample.level[i][2]);
+            std::cout << "[" << i << "]cost: " << cost << std::endl;
+            if(cost >= thRatio){
+                buffer[dematchCount][0] = Temp.level[i][0];
+                buffer[dematchCount][1] = Temp.level[i][2];
+                buffer[dematchCount][2] = Sample.level[i][0];
+                buffer[dematchCount][3] = Sample.level[i][2];
+                Temp.level[i][0]   = invalidNum;
+                Temp.level[i][2]   = invalidNum;
+                Sample.level[i][0] = invalidNum;
+                Sample.level[i][2] = invalidNum;
+                dematchCount++;
+            }
+        }
+    }
+
+    if(dematchCount == 0)
+    {//沒有任何dematch
+        dualCTData newPair;
+        newPair.A = Temp;
+        newPair.B = Sample;
+        return newPair;
+    }
+
+    dualCTData newPair;
+    int newLen = Temp.length + dematchCount;
+    newPair.A = getNewCTData(newLen);
+    newPair.B = getNewCTData(newLen);
+    int oldIdx    = 0;
+    int bufferIdx = 0;
+    for(int i=0 ; i<newLen ; i++){
+        int sum = Temp.level[oldIdx][0] + Temp.level[oldIdx][2] + Sample.level[oldIdx][0] + Sample.level[oldIdx][2];
+        if(sum == invalidSum)
+        {//碰到剛剛dematch刪掉的地方了
+            //放temp
+            newPair.A.level[i][0] = buffer[bufferIdx][0];
+            newPair.A.level[i][2] = buffer[bufferIdx][1];
+            newPair.B.level[i][0] = 0;
+            newPair.B.level[i][2] = 0;
+            //放sample
+            newPair.A.level[i+1][0] = 0;
+            newPair.A.level[i+1][2] = 0;
+            newPair.B.level[i+1][0] = buffer[bufferIdx][2];
+            newPair.B.level[i+1][2] = buffer[bufferIdx][3];
+            i++;//新的idx要跳兩格
+            oldIdx++;
+            bufferIdx++;
+        }else
+        {//不變
+            newPair.A.level[i][0] = Temp.level[oldIdx][0];
+            newPair.A.level[i][2] = Temp.level[oldIdx][2];
+            newPair.B.level[i][0] = Sample.level[oldIdx][0];
+            newPair.B.level[i][2] = Sample.level[oldIdx][2];
+            oldIdx++;
+        }
+    }
+    return newPair;
+}
+//dematch處理
 void subSampleEigen(ctData &data, double sampleRate){
     for(int i=0; i<data.length ; i++){
         data.level[i][0] *= sampleRate;
@@ -1401,8 +1405,9 @@ ctData getQuadrantEigen(trajData *temp){
 }
 ctData getContinuousEigen(trajData *temp){
     //取得象限特徵
-    isSameTypeLimit = 1;
+    isSameTypeLimit = 0;
     ctData ctDataTemp = sumOfPNTrajWithContinueTypeV(*temp);
+
     //融合連續相似特徵
     isSameTypeLimit = 0;
     mergeSimilarType(ctDataTemp);
@@ -1442,10 +1447,6 @@ dualCTData getBestMatchResult(dualCTData eigenPair){
     dualCTData resultCT;
     resultCT.A = ctDataRecoverXZFromIntA(eigenPair.A, bestMatch.A);
     resultCT.B = ctDataRecoverXZFromIntA(eigenPair.B, bestMatch.B);
-
-    //後處理
-    isSameTypeLimit = 2;
-    mergeContinuousSimilar(resultCT.A, resultCT.B);
 
     return resultCT;
 }
