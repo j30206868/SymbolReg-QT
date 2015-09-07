@@ -28,7 +28,7 @@ bool isSameType(int tempType, int sampleType);
 void cleanIntA(intArray &data);
 intArray copyIntA(intArray data);
 //dualIntArray處理
-dualIntArray fillSpaceWithZero(dualIntArray data);
+dualIntArray fillSpaceWithDummy(dualIntArray data);
 void cleanDualIntArray(dualIntArray &data);
 
 intArray splitAsInt(std::string str, std::string delimiter);
@@ -39,7 +39,10 @@ void cleanNotImportant(trajData &data, int axis, int sP, int cC, int endIdx);
 bool cleanCCUnder10(trajData &data, int axis, int cTh, int avgTh, int endIdx, int cC, int zeroC, int sum);
 void removeTail(trajData &data);
 ctData sumOfPNTrajWithSign(trajData &data);
+
+int newCTDataMergeV(int v1, int v2);
 int ctDataMergeV(int v1, int v2);
+
 intArray ctDataMergeXZToIntA(ctData data);
 //getSpetialIdx flag
 const int SP_FLAG_NOTHING = -1;
@@ -47,7 +50,7 @@ const int SP_FLAG_FULL_MATCH = 0;
 const int SP_FLAG_WRONG_TYPE = 1;
 const int SP_FLAG_FAR_DISTANCE = 2;
 int getSpecialIdx(intArray tempIntA, intArray sampleIntA, ctData &temp, ctData &sample, int sP, int &flag);
-intArray insertZero(intArray A, int insertPos);
+intArray insertDummy(intArray A, int insertPos);
 //getZoneBestMatch
 const int defaultLenLimit = 8;
 const int EXEST_OVERLEN = 1;

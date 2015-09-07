@@ -8,58 +8,37 @@
 
 using namespace std;
 
+int getDegreeDistance(int d1, int d2){
+    int big   = max(d1, d2);
+    int small = min(d1, d2);
+    int distance = big - small;
+    if(distance > 180){
+        distance = 360 - distance;
+    }
+    return distance;
+}
+
 bool isSameType(int tempType, int sampleType)
 {//用於ctData merge x跟z軸後的data
-    if(tempType==0 || sampleType==0){
-        return true;//type 0 是dummy 等於其他任何type
+    if(tempType==-1 || sampleType==-1){
+        return true;//type -1 是dummy 等於其他任何type
     }
 
-    if(tempType == sampleType){
-        return true;
-    }
-
-    int bigOne = max(tempType, sampleType);
-    int smallOne = min(tempType, sampleType);
-    int dis = abs(bigOne - smallOne);
+    int distance = getDegreeDistance(tempType, sampleType);
 
     /*  dis <= N 若N大於1 要調整後面的部分 因為整個圓圈的設計14 15 16 後面是接 1 2 3 4*/
-    if( isSameTypeLimit == 0 ){
-        if(tempType == sampleType){
+    if( isSameTypeLimit == 1 ){
+        if(distance < 33.75)
             return true;
-        }else{
-            return false;
-        }
-    }else if( isSameTypeLimit == 1 ){
-        if( dis <= 1){
-            return true;
-        }else if(bigOne == 16 && smallOne == 1){
-            return true;
-        }
     }else if( isSameTypeLimit == 2 ){
-        if( dis <= 2 ){
+        if(distance < 56.25)
             return true;
-        }else if(((bigOne  == 16 || bigOne   == 15) &&
-                  (smallOne == 1 || smallOne == 2 ))){
-
-            bigOne -= 16;
-
-            dis = abs(bigOne - smallOne);
-            if(dis <= 2){
-                return true;
-            }
-        }
     }else if( isSameTypeLimit == 3 ){
-        if( dis <= 3 ){
+        if(distance < 78.75)
             return true;
-        }else if(((bigOne  == 16 || bigOne   == 15 || bigOne == 14) &&
-                (  smallOne == 1 || smallOne == 2  || smallOne == 3 ))){
-            bigOne -= 16;
-
-            dis = abs(bigOne - smallOne);
-            if(dis <= 3){
-                return true;
-            }
-        }
+    }else if( isSameTypeLimit == 0 ){
+        if(distance < 11.25)
+            return true;
     }
     return false;
 }
@@ -376,92 +355,28 @@ ctData sumOfPNTrajWithContinueTypeV(trajData &data)
     return newData;
 }
 
-int ctDataMergeV(int v1, int v2){
-    int type = 0;
-    /*
-        double TAN15D = 0.2679492;
-        double TAN35D = 0.7002075;
-        double TAN45D = 1.0;
-        double TAN55D = 1.4281480;
-        double TAN75D = 3.7320508;
-    */
-    //get ratio
-    double ratio;
-
+int newCTDataMergeV(int v1, int v2){
     if(v1 == 0 && v2 == 0){
-        return 0;
+        return -1;//不合法輸入
     }
-
-    if(v1 == 0){
-        ratio = 0;
-    }else if(v2 == 0){
-        ratio = 1000;//無限大
-    }else{
-        ratio = abs(v1) / (double)abs(v2);
+    int degree = getRound(atan2(v1, v2*-1) * 57.2957);
+    if(degree < 0){
+        degree = 360 - (0 - degree);
     }
+    return degree;
+    //return getRound(atan2(v1, v2*-1) * 57.2957);
+    //return getRound(atan(ratio) * 57.2957) * angleSign + base;
+}
 
-    //get type
-    if( v1 > 0 )
-    {//右半球
-        if( ratio > TAN75D ){
-            type = 5;
-        }else if( ratio > TAN55D ){
-            if(v2 > 0){
-                type = 4;
-            }else{
-                type = 6;
-            }
-        }else if( ratio >= TAN35D ){// tan 35
-            if(v2 > 0){
-                type = 3;
-            }else{
-                type = 7;
-            }
-        }else if( ratio > TAN15D ){
-            if(v2 > 0){
-                type = 2;
-            }else{
-                type = 8;
-            }
-        }else{// 0 ~ tan(15)
-            if(v2 > 0){
-                type = 1;
-            }else{
-                type = 9;
-            }
-        }
-    }else
-    {//左半球
-        if( ratio > TAN75D ){
-            type = 13;
-        }else if( ratio > TAN55D ){
-            if(v2 > 0){
-                type = 14;
-            }else{
-                type = 12;
-            }
-        }else if( ratio >= TAN35D ){
-            if(v2 > 0){
-                type = 15;
-            }else{
-                type = 11;
-            }
-        }else if( ratio > TAN15D ){
-            if(v2 > 0){
-                type = 16;
-            }else{
-                type = 10;
-            }
-        }else{
-            if(v2 > 0){
-                type = 1;
-            }else{
-                type = 9;
-            }
-        }
+int ctDataMergeV(int v1, int v2){
+    if(v1 == 0 && v2 == 0){
+        return -1;//不合法輸入
     }
-
-    return type;
+    int degree = getRound(atan2(v1, v2*-1) * 57.2957);
+    if(degree < 0){
+        degree = 360 - (0 - degree);
+    }
+    return degree;
 }
 intArray ctDataMergeXZToIntA(ctData data){
     intArray newData;
@@ -483,11 +398,11 @@ int getSpecialIdx(intArray tempIntA, intArray sampleIntA, ctData &temp, ctData &
 
     int tempZC = 0, sampleZC = 0;
     for(int i=0 ; i<minLen ; i++){
-        if(tempIntA.values[i] == 0 || sampleIntA.values[i] == 0){
-            if(tempIntA.values[i] == 0){
+        if(tempIntA.values[i] == -1 || sampleIntA.values[i] == -1){
+            if(tempIntA.values[i] == -1){
                 tempZC++;
             }
-            if(sampleIntA.values[i] == 0){
+            if(sampleIntA.values[i] == -1){
                 sampleZC++;
             }
             continue;
@@ -501,7 +416,7 @@ int getSpecialIdx(intArray tempIntA, intArray sampleIntA, ctData &temp, ctData &
             sPoint = i;
             //printf("Temp: %d|%d %d Sample: %d|%d %d Type Diff\n", tempIntA.values[i], temp.level[ i-tempZC ][0], temp.level[ i-tempZC ][2], sampleIntA.values[i], sample.level[ i-sampleZC ][0], sample.level[ i-sampleZC ][2]);
             break;
-        }else if(tempIntA.values[i]!=0 && sampleIntA.values[i]!=0)
+        }else if(tempIntA.values[i]!=-1 && sampleIntA.values[i]!=-1)
         {//同type 看看距離是否過大
             //計算dis
             int disT, disS;
@@ -539,7 +454,7 @@ int getSpecialIdx(intArray tempIntA, intArray sampleIntA, ctData &temp, ctData &
     }
     return sPoint;
 }
-intArray insertZero(intArray A, int insertPos){
+intArray insertDummy(intArray A, int insertPos){
     intArray newArray;
     newArray.length = A.length + 1;
     newArray.values = new int[newArray.length];
@@ -547,7 +462,7 @@ intArray insertZero(intArray A, int insertPos){
 
     for(int i=0 ; i<newArray.length ; i++){
         if(i == insertPos){
-            newArray.values[i] = 0;
+            newArray.values[i] = -1;
         }else{
             newArray.values[i] = A.values[oldIdx];
             oldIdx++;
@@ -566,9 +481,9 @@ int getDisOfXZCT(intArray &tempIntA, intArray &sampleIntA, ctData &temp, ctData 
     {
         //還沒道start point只要計算zero count就好
         if(idx < sP){
-            if(tempIntA.values[idx] == 0)
+            if(tempIntA.values[idx] == -1)
                 tempZC++;
-            if(sampleIntA.values[idx] == 0)
+            if(sampleIntA.values[idx] == -1)
                 sampleZC++;
             continue;
         }else if(eP != -1 && idx > eP){
@@ -582,7 +497,7 @@ int getDisOfXZCT(intArray &tempIntA, intArray &sampleIntA, ctData &temp, ctData 
 
         if(idx < tempIntA.length)
         {
-            if(tempIntA.values[idx] == 0){
+            if(tempIntA.values[idx] == -1){
                 tempZC++;
             }else{
                 valueTX = temp.level[ idx-tempZC ][0];
@@ -592,7 +507,7 @@ int getDisOfXZCT(intArray &tempIntA, intArray &sampleIntA, ctData &temp, ctData 
 
         if(idx < sampleIntA.length)
         {
-            if(sampleIntA.values[idx] == 0){
+            if(sampleIntA.values[idx] == -1){
                 sampleZC++;
             }else{
                 valueSX = sample.level[ idx-sampleZC ][0];
@@ -624,7 +539,7 @@ int* getFourValueInDual(int tP, int sP, intArray tempIntA, intArray sampleIntA, 
     }
 
     for(int i=0 ; i<minLen ; i++){
-        if(i < tempIntA.length && tempIntA.values[i] == 0){
+        if(i < tempIntA.length && tempIntA.values[i] == -1){
             tempZC++;
         }else{//非0找到才assign值 否則直接照預設值給0
             if(i < tempIntA.length &&
@@ -635,7 +550,7 @@ int* getFourValueInDual(int tP, int sP, intArray tempIntA, intArray sampleIntA, 
             }
         }
 
-        if(i < sampleIntA.length && sampleIntA.values[i] == 0){
+        if(i < sampleIntA.length && sampleIntA.values[i] == -1){
             sampleZC++;
         }else{
             if(i < sampleIntA.length &&
@@ -684,8 +599,8 @@ dualIntArray getZoneBestMatch(intArray tempIntA, intArray sampleIntA, ctData &te
         exeState = EXEST_FULLMATCH;
         return OM;
     }else if(spFlag == SP_FLAG_WRONG_TYPE){
-        intArray newTemp   = insertZero(tempIntA, spIdx);
-        intArray newSample = insertZero(sampleIntA, spIdx);
+        intArray newTemp   = insertDummy(tempIntA, spIdx);
+        intArray newSample = insertDummy(sampleIntA, spIdx);
 
         int fEp = -1;
         int sEp = -1;
@@ -754,8 +669,8 @@ dualIntArray getZoneBestMatch(intArray tempIntA, intArray sampleIntA, ctData &te
             return secondM;
         }
     }else if(spFlag == SP_FLAG_FAR_DISTANCE){
-        intArray newTemp = insertZero(tempIntA, spIdx);
-        intArray newSample = insertZero(sampleIntA, spIdx);
+        intArray newTemp = insertDummy(tempIntA, spIdx);
+        intArray newSample = insertDummy(sampleIntA, spIdx);
 
         int fEp = -1;
         int sEp = -1;
@@ -849,6 +764,7 @@ dualIntArray getZoneBestMatchLoop(intArray tempIntA, intArray sampleIntA, ctData
 
 //會產生memory leak(舊的CT沒被刪除)
 ctData ctDataRecoverXZFromIntA(ctData &originCT, intArray intA){
+
     ctData newData;
     newData.length = intA.length;
     newData.level = new int*[intA.length];
@@ -857,7 +773,8 @@ ctData ctDataRecoverXZFromIntA(ctData &originCT, intArray intA){
     int oC = 0;
     for(int idx=0 ; idx<intA.length; idx++){
         newData.level[idx] = new int[3];
-        if(intA.values[idx] == 0){
+
+        if(intA.values[idx] == -1){
             newData.level[idx][0] = 0;
             newData.level[idx][1] = 0;
             newData.level[idx][2] = 0;
@@ -874,7 +791,6 @@ ctData ctDataRecoverXZFromIntA(ctData &originCT, intArray intA){
     //freeCT(originCT);
     return newData;
 }
-
 //Compare similarity
 intArray ctDataXZDistance(ctData data){
     intArray newData;
@@ -887,6 +803,7 @@ intArray ctDataXZDistance(ctData data){
 
     return newData;
 }
+
 intArray* ctDataToIntA(ctData data){
     intArray *newData = new intArray[3];
 
@@ -900,6 +817,7 @@ intArray* ctDataToIntA(ctData data){
     }
     return newData;
 }
+
 double getCorrOfAxisWithNoZero( intArray temp, intArray sample, int times )
 {
     int length = temp.length;
@@ -973,7 +891,6 @@ double getCorrOfAxisWithNoZero( intArray temp, intArray sample, int times )
     }
     return corr;
 }
-
 void sumOfABSIntArrayABWithNoZero(intArray A, intArray B, int &aABSSum, int &bABSSum){
     aABSSum = 0;
     bABSSum = 0;
@@ -995,6 +912,7 @@ double meanOfABSIntA(intArray A){
     mean = mean / (double)A.length;
     return mean;
 }
+
 double unMatchedPercent(intArray FA, intArray SA){
     if(FA.length != SA.length){
         printf("unMatchedPercent: 兩陣列長度不同, 無法處理, 請先補零\n");
@@ -1018,6 +936,7 @@ double unMatchedPercent(intArray FA, intArray SA){
     }
     return percent;
 }
+
 double calcDiffCostRatioWithNotZero(intArray A, intArray B){
     if(A.length == B.length){
         int aABSSum = 0.0;
@@ -1046,7 +965,7 @@ double calcDiffCostRatioWithNotZero(intArray A, intArray B){
         return 1;
     }
 }
-dualIntArray fillSpaceWithZero(dualIntArray data){
+dualIntArray fillSpaceWithDummy(dualIntArray data){
     int ALen = data.A.length;
     int BLen = data.B.length;
 
@@ -1064,7 +983,7 @@ dualIntArray fillSpaceWithZero(dualIntArray data){
                 if(i<BLen){
                     newIntA.values[i] = data.B.values[i];
                 }else{
-                    newIntA.values[i] = 0;
+                    newIntA.values[i] = -1;
                 }
             }
             //釋放舊的B
@@ -1076,7 +995,7 @@ dualIntArray fillSpaceWithZero(dualIntArray data){
                 if(i<ALen){
                     newIntA.values[i] = data.A.values[i];
                 }else{
-                    newIntA.values[i] = 0;
+                    newIntA.values[i] = -1;
                 }
             }
             //釋放舊的A
@@ -1086,7 +1005,6 @@ dualIntArray fillSpaceWithZero(dualIntArray data){
     }
     return data;
 }
-
 void enhanceUnmatchPercent(double &cvalue, double &unmatchPercent){
     if(unmatchPercent > 1){
         cvalue = -1;
@@ -1100,7 +1018,6 @@ void enhanceUnmatchPercent(double &cvalue, double &unmatchPercent){
         unmatchPercent *= 2;
     }
 }
-
 double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
     intArray tempDis = ctDataXZDistance(Temp);
@@ -1119,7 +1036,7 @@ double showBestMatchResult(ctData Temp, ctData Sample, bool printResult){
 
             printf("| %6d %6d | %6d %6d |",tempIntA[0].values[idx], tempIntA[2].values[idx], sampleIntA[0].values[idx], sampleIntA[2].values[idx]);
 
-            printf(" %6d %6d | %6d %6d", tempDis.values[idx], sampleDis.values[idx], ctDataMergeV(Temp.level[Midx][0], Temp.level[Midx][2]), ctDataMergeV(Sample.level[Midx][0], Sample.level[Midx][2]));
+            printf(" %6d %6d | %6d %6d", tempDis.values[idx], sampleDis.values[idx], newCTDataMergeV(Temp.level[Midx][0], Temp.level[Midx][2]), newCTDataMergeV(Sample.level[Midx][0], Sample.level[Midx][2]));
 
             if( tempIntA[0].values[idx] == 0 && tempIntA[2].values[idx] == 0)
                 tempZeroC++;
@@ -1236,7 +1153,6 @@ int checkEmptySide(int x1, int y1, int x2, int y2){
     }
     return result;
 }
-
 int getUpperNonZeroIdx(ctData targetSide, ctData emptySide, int limitLastIdx, int idx){
     //防止idx超出範圍
     int sIdx = min(targetSide.length, idx-1);
@@ -1254,7 +1170,6 @@ int getUpperNonZeroIdx(ctData targetSide, ctData emptySide, int limitLastIdx, in
     }
     return -1;
 }
-
 int getBelowNonZeroIdx(ctData targetSide, ctData emptySide, int limitLastIdx, int idx){
     //防止idx小於0
     int sIdx = max(0, idx+1);
@@ -1273,7 +1188,6 @@ int getBelowNonZeroIdx(ctData targetSide, ctData emptySide, int limitLastIdx, in
     }
     return -1;
 }
-
 bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int limitLastIdx, int &idx){//如果merge成功idx會被改變
     int x=0, y=1, z=2;
 
@@ -1324,7 +1238,6 @@ bool mergePointWithNeighbor(ctData &targetSide, ctData emptySide, int limitLastI
     }
     return false;
 }
-
 void mergeContinuousSimilar(ctData &Temp, ctData &Sample){
     //尋過每一個特徵
     if(Temp.length != Sample.length){
@@ -1360,14 +1273,12 @@ void mergeContinuousSimilar(ctData &Temp, ctData &Sample){
         //printf("\n");
     }
 }
-
 void subSampleEigen(ctData &data, double sampleRate){
     for(int i=0; i<data.length ; i++){
         data.level[i][0] *= sampleRate;
         data.level[i][2] *= sampleRate;
     }
 }
-
 void mergeSimilarType(ctData &data){
     int lastType = ctDataMergeV(data.level[0][0], data.level[0][2]);
     int lastIdx = 0;
@@ -1411,7 +1322,6 @@ void mergeSimilarType(ctData &data){
     }
     data.length = newIdx+1;//長度是最後一個idx+1
 }
-
 //刪除沒得merge 但X跟Z軸的值卻又都小於平均值超過th倍的特徵
 ctData removeNoisyFeature(ctData data, int th, int method){
     double *denominator = 0;
@@ -1436,15 +1346,15 @@ ctData removeNoisyFeature(ctData data, int th, int method){
         return data;//zero guard
     }
 
-    //std::cout << "denominator:" << denominator[0] << ", " << denominator[2] << std::endl;
-
     double thRatio = 1.0 / th;
     int removeCount = 0;
+
+    //std::cout << "th ratio: " << thRatio << std::endl;
+    //std::cout << "denominator:" << denominator[0] << ", " << denominator[2] << std::endl;
+
     for(int i=0 ; i<data.length ; i++){
         double ratioX = abs(data.level[i][0]) / denominator[0];
         double ratioZ = abs(data.level[i][2]) / denominator[2];
-
-        //std::cout << "i[" << i <<"]:" << ratioX << ", " << ratioZ << std::endl;
 
         if( ratioX < thRatio && ratioZ < thRatio){
             data.level[i][0] = 0;
@@ -1460,6 +1370,7 @@ ctData removeNoisyFeature(ctData data, int th, int method){
         int newLen = data.length - removeCount;
         ctData newData = getNewCTData(newLen);
         int newIdx = 0;
+
         for(int oldIdx=0 ; oldIdx<data.length ; oldIdx++){
             if(data.level[oldIdx][0]!=0 || data.level[oldIdx][2]!=0){
                 newData.level[newIdx][0] = data.level[oldIdx][0];
@@ -1474,7 +1385,6 @@ ctData removeNoisyFeature(ctData data, int th, int method){
         return data;
     }
 }
-
 ctData getQuadrantEigen(trajData *temp){
     //取得象限特徵
     isSameTypeLimit = 1;
@@ -1489,7 +1399,6 @@ ctData getQuadrantEigen(trajData *temp){
     //放入DualCT
     return ctDataTemp;
 }
-
 ctData getContinuousEigen(trajData *temp){
     //取得象限特徵
     isSameTypeLimit = 1;
@@ -1506,7 +1415,6 @@ ctData getContinuousEigen(trajData *temp){
     //放入DualCT
     return ctDataTemp;
 }
-
 double getTempPowerOfSample(double *tMean, double *sMean){
     double xPower = tMean[0] / sMean[0];
     double zPower = tMean[2] / sMean[2];
@@ -1519,7 +1427,6 @@ double getTempPowerOfSample(double *tMean, double *sMean){
     return xPower * xRatio + zPower * zRatio;
     //return (xPower + zPower) / 2;
 }
-
 dualCTData getBestMatchResult(dualCTData eigenPair){
     //type差距在2以內才能match在一起
     isSameTypeLimit = 1;
@@ -1529,22 +1436,24 @@ dualCTData getBestMatchResult(dualCTData eigenPair){
     //取得bestMatch結果
     dualIntArray bestMatch = getZoneBestMatchLoop(tempMerge, sampleMerge, eigenPair.A, eigenPair.B, false);
     //補0
-    bestMatch = fillSpaceWithZero(bestMatch);
+    bestMatch = fillSpaceWithDummy(bestMatch);
+
     //將結果還原成CTData
     dualCTData resultCT;
     resultCT.A = ctDataRecoverXZFromIntA(eigenPair.A, bestMatch.A);
     resultCT.B = ctDataRecoverXZFromIntA(eigenPair.B, bestMatch.B);
+
     //後處理
     isSameTypeLimit = 2;
     mergeContinuousSimilar(resultCT.A, resultCT.B);
 
     return resultCT;
 }
-
 dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
     dualCTData eigenPair;
     eigenPair.A = getContinuousEigen(temp);
     eigenPair.B = getContinuousEigen(sample);
+
     //計算temp(A) sample(B)的大小差距倍數
     double *tempMean    = getABSMeanOfCTData(eigenPair.A);
     double *samplepMean = getABSMeanOfCTData(eigenPair.B);
@@ -1553,11 +1462,12 @@ dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
     //如果有做affine transform就不需要了
     subSampleEigen(eigenPair.A, 0.1);
     subSampleEigen(eigenPair.B, 0.1 * power);
+
     //std::cout << QObject::tr("Temp是Sample的 ").toLocal8Bit().data() << power;
     //std::cout << QObject::tr(" 倍大").toLocal8Bit().data() << std::endl;
 
     dualCTData matchedPair = getBestMatchResult(eigenPair);
+
     freeDualCT(eigenPair);
     return matchedPair;
 }
-

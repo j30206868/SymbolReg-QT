@@ -290,9 +290,9 @@ void RenderArea::drawDetailBoxBesideComparedFigure(dualCTData bestMatch, SymLine
         sstm.str("");
 
         char s[27];
-        sprintf(s, "%2d| %6d %6d(%2d)", i, bestMatch.A.level[i][0], bestMatch.A.level[i][2], ctDataMergeV(bestMatch.A.level[i][0], bestMatch.A.level[i][2]));
+        sprintf(s, "%2d| %6d %6d(%2d)", i, bestMatch.A.level[i][0], bestMatch.A.level[i][2], newCTDataMergeV(bestMatch.A.level[i][0], bestMatch.A.level[i][2]));
         sstm << s << " | ";
-        sprintf(s, "%6d %6d(%2d)", bestMatch.B.level[i][0], bestMatch.B.level[i][2], ctDataMergeV(bestMatch.B.level[i][0], bestMatch.B.level[i][2]));
+        sprintf(s, "%6d %6d(%2d)", bestMatch.B.level[i][0], bestMatch.B.level[i][2], newCTDataMergeV(bestMatch.B.level[i][0], bestMatch.B.level[i][2]));
         sstm << s << "\n";
 
         setPenColorByChar(i, lines[i].color);
