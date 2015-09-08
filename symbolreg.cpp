@@ -2,6 +2,8 @@
 #include <math.h>
 #include <cstdlib>
 
+#include "mousectrl.h"
+
 #include "iostream"
 
 #include <QObject>
@@ -31,10 +33,10 @@ bool isSameType(int tempType, int sampleType)
         if(distance < 33.75)
             return true;
     }else if( isSameTypeLimit == 2 ){
-        if(distance < 56.25)
+        if(distance < 45)
             return true;
     }else if( isSameTypeLimit == 3 ){
-        if(distance < 78.75)
+        if(distance < 67.5)
             return true;
     }else if( isSameTypeLimit == 0 ){
         if(distance < 11.25)
@@ -264,7 +266,16 @@ ctData sumOfPNTrajWithContinueTypeV(trajData &data)
 
     return newData;
 }
-
+int ctDataMergeVNormal(int x, int y){
+    if(x == 0 && y == 0){
+        return -1;//不合法輸入
+    }
+    int degree = getRound(atan2(y, x) * 57.2957);
+    if(degree < 0){
+        degree = 360 - (0 - degree);
+    }
+    return degree;
+}
 int ctDataMergeV(int v1, int v2){
     if(v1 == 0 && v2 == 0){
         return -1;//不合法輸入
@@ -1424,10 +1435,10 @@ ctData getContinuousEigen(trajData *temp){
     //融合連續相似特徵
     isSameTypeLimit = 0;
     mergeSimilarType(ctDataTemp);
-    isSameTypeLimit = 1;
-    mergeSimilarType(ctDataTemp);
+    //isSameTypeLimit = 1;
+    //mergeSimilarType(ctDataTemp);
     //刪除太小又無法merge的特徵值(XZ都小於平均5倍以上)
-    ctDataTemp   = removeNoisyFeature(ctDataTemp  , 12, SYMREG_RMNOISE_BYLARGEST);
+    ctDataTemp   = removeNoisyFeature(ctDataTemp  , 4, SYMREG_RMNOISE_BYLARGEST);
     ctDataTemp   = removeNoisyFeature(ctDataTemp  , 3, SYMREG_RMNOISE_BYMEAN);
     //ctDataTemp   = removeNoisyFeature(ctDataTemp, 3, SYMREG_RMNOISE_BYMEAN);
     //放入DualCT
@@ -1437,17 +1448,36 @@ double getTempPowerOfSample(double *tMean, double *sMean){
     double xPower = tMean[0] / sMean[0];
     double zPower = tMean[2] / sMean[2];
 
-    double tXRatio = tMean[0] / (tMean[0] + tMean[2]);
-    double sXRatio = sMean[0] / (sMean[0] + sMean[2]);
-    double xRatio  = (tXRatio + sXRatio) / 2;
+    //double tXRatio = tMean[0] / (tMean[0] + tMean[2]);
+    //double sXRatio = sMean[0] / (sMean[0] + sMean[2]);
+
+    double totalX = tMean[0] + sMean[0];
+    double totalZ = tMean[2] + sMean[2];
+
+    double xRatio = totalX / (totalX + totalZ);
+    //double xRatio  = (tXRatio + sXRatio) / 2;
     double zRatio  = 1 - xRatio;
 
-    return xPower * xRatio + zPower * zRatio;
+    cout << "tMean[0]: " << tMean[0] <<endl;
+    cout << "tMean[2]: " << tMean[2] <<endl;
+    cout << "sMean[0]: " << sMean[0] <<endl;
+    cout << "sMean[2]: " << sMean[2] <<endl;
+    cout << "xRatio: " << xRatio <<endl;
+    cout << "zRatio: " << zRatio <<endl;
+
+    if(xRatio < 0.25){
+        return zPower;
+    }else if(zRatio < 0.25){
+        return xPower;
+    }else{
+        return xPower * xRatio + zPower * zRatio;
+    }
+
     //return (xPower + zPower) / 2;
 }
 dualCTData getBestMatchResult(dualCTData eigenPair){
     //type差距在2以內才能match在一起
-    isSameTypeLimit = 1;
+    isSameTypeLimit = 2;
     //轉換成intArray
     intArray tempMerge = ctDataMergeXZToIntA(eigenPair.A);
     intArray sampleMerge = ctDataMergeXZToIntA(eigenPair.B);
@@ -1465,8 +1495,8 @@ dualCTData getBestMatchResult(dualCTData eigenPair){
 }
 dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
     dualCTData eigenPair;
-    eigenPair.A = getContinuousEigen(temp);
-    eigenPair.B = getContinuousEigen(sample);
+    eigenPair.A = getQuadrantEigen(temp);
+    eigenPair.B = getQuadrantEigen(sample);
 
     //計算temp(A) sample(B)的大小差距倍數
     double *tempMean    = getABSMeanOfCTData(eigenPair.A);
@@ -1477,6 +1507,8 @@ dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
     subSampleEigen(eigenPair.A, 0.1);
     subSampleEigen(eigenPair.B, 0.1 * power);
 
+    cout << "power: " << power << endl;
+
     //std::cout << QObject::tr("Temp是Sample的 ").toLocal8Bit().data() << power;
     //std::cout << QObject::tr(" 倍大").toLocal8Bit().data() << std::endl;
 
@@ -1484,4 +1516,129 @@ dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
 
     freeDualCT(eigenPair);
     return matchedPair;
+}
+
+double calcContinuousSimilarity(int tLen, int sLen){
+    return 1 - (abs(tLen - sLen) / (double)max(tLen, sLen));
+}
+double getDistanceWeight(ctData data, int eX, int eY){
+    int largestV = getABSLargestValueOfBothAxis(data);
+    cout<<"largestV: "<<largestV<<endl;
+    return (abs(eX)+abs(eY)) / (double)largestV;
+}
+int getStartAndEndPosition(ctData temp, int &x2, int &y2){
+    //暫存移動時的資訊
+    /*double velocity1[3] = {0, 0, 0};
+    int AcclZeroC1[3] = {0, 0, 0};
+    int accl[3] = {0,0,0};
+
+    MouseCtrl mc1 = MouseCtrl();
+    mc1.gyroSensitivity = 250;
+
+    int dx = 0;
+    int dy = 0;
+
+    x2 = 0;
+    y2 = 0;
+    for(int i=0; i<temp.length ; i++){
+        mc1.moveCursor(accl, temp.level[i], velocity1, AcclZeroC1, 10, false);
+        int sx = dx;
+        int sy = dy;
+        dx = getRound(mc1.getDx()/3.0*10);
+        dy = getRound(mc1.getDy()/3.0*10);
+        int ex = dx;
+        int ey = dy;
+        x2 += ex - sx;
+        y2 += ey - sy;
+    }*/
+    x2 = 0;
+    y2 = 0;
+    for(int i=0 ; i<temp.length ; i++){
+        x2-=temp.level[i][2];
+        y2+=temp.level[i][0];
+    }
+}
+double calcDistanceCost(int tX, int tZ, int sX, int sZ){
+    int totalT = abs(tX) + abs(tZ);
+    int totalS = abs(sX) + abs(sZ);
+
+    double tXPercent = abs(tX) / (double)totalT;
+    double sXPercent = abs(sX) / (double)totalS;
+
+    double fXRatio = (tXPercent + sXPercent) / 2.0;
+    double fZRatio = 1 - fXRatio;
+
+    double xCost = (double)abs(tX - sX) / max(abs(tX), abs(sX)) * fXRatio;
+    double zCost = (double)abs(tZ - sZ) / max(abs(tZ), abs(sZ)) * fZRatio;
+
+    return xCost + zCost;
+}
+double getCESimilairty(trajData *temp, trajData *sample){
+    dualCTData continuousPair;
+    continuousPair.A = getContinuousEigen(temp);
+    continuousPair.B = getContinuousEigen(sample);
+
+    int tempCECount = continuousPair.A.length;
+    int sampleCECount = continuousPair.B.length;
+    return calcContinuousSimilarity(tempCECount, sampleCECount);
+}
+double calcComplexSimilarity(dualCTData quadrantPair, trajData *temp, trajData *sample, bool printResult){
+    //算end跟start向量影響的權重
+    int tX2, tY2, sX2, sY2;
+    getStartAndEndPosition(quadrantPair.A, tX2, tY2);
+    getStartAndEndPosition(quadrantPair.B, sX2, sY2);
+    //算degree distance
+    int tDegree = ctDataMergeVNormal(tX2, tY2);
+    int sDegree = ctDataMergeVNormal(sX2, sY2);
+    int degreeDis = getDegreeDistance(tDegree, sDegree);
+
+    double tDisWeight = getDistanceWeight(quadrantPair.A, tX2, tY2);
+    double sDisWeight = getDistanceWeight(quadrantPair.B, sX2, sY2);
+    double distanceWeight = (tDisWeight + sDisWeight) / 2.0;
+
+    //distance的大小 是 degree的similarity 的權重
+    double SEDegSimilarity = 1 - (degreeDis / 180.0);
+    //SEDegSimilarity = (SEDegSimilarity - 0.5) * 2;
+
+    double positionDistance = 1 - calcDistanceCost(tX2,  tY2,  sX2,  sY2);
+
+    double CESimilarity = getCESimilairty(temp, sample);
+    //CEsimilarity如果很高像是0.8~1其實不需要被區別
+    //但如果很低 就要明顯區別
+    CESimilarity = min((CESimilarity - 0.5) * 2.5, 1.0);
+
+    double quadrantSimilarity = showBestMatchResult(quadrantPair.A, quadrantPair.B, false);
+
+    double maxDegSimi = 0.1;
+    double maxPosSimi = 0.3;
+    double degreeSimi = (SEDegSimilarity  * distanceWeight) * maxDegSimi;
+    double posiSimi   =  (positionDistance * distanceWeight) * maxPosSimi;
+
+    if(tDisWeight < 0.4 && sDisWeight < 0.4){
+        degreeSimi = 0.1;
+        posiSimi = 0.2;
+    }
+
+    double result = degreeSimi;
+           result+= posiSimi;
+           result+= CESimilarity     * 0.2;
+           result+= quadrantSimilarity * 0.5;
+           //result = result / 3.0;
+
+
+   if(printResult){
+       cout << "tDisWeight = " << tDisWeight << endl;
+       cout << "sDisWeight = " << sDisWeight << endl;
+       cout << "Temp   end (" << tX2 << ", " << tY2 << ")" << ctDataMergeVNormal(tX2, tY2) << endl;
+       cout << "Sample end (" << sX2 << ", " << sY2 << ")" << ctDataMergeVNormal(sX2, sY2) << endl;
+       cout << "positionDistance   = " << posiSimi << endl;
+       cout << "degreeSimilarity(" << degreeSimi << ") = ";
+       cout << " SEDegSimilarity(" << SEDegSimilarity << ") * ";
+       cout << "distanceWeight(" << distanceWeight << ") * 0.2" << endl;
+       cout << "CESimilarity       = " << CESimilarity << endl;
+       cout << "quadrantSimilarity = " << quadrantSimilarity << endl;
+       cout << "result           = " << result << endl;
+   }
+
+    return result;
 }

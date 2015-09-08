@@ -79,7 +79,17 @@ double* getABSMeanOfCTDataWithNoZero(ctData data, int &largest){
     }
     return mean;
 }
+int getABSLargestValueOfBothAxis(ctData data){
+    int largest = 0;
 
+    for(int i=0 ; i<data.length ; i++){
+        int absv = std::abs(data.level[i][0]) + std::abs(data.level[i][2]);
+        if( absv > largest )
+            largest = absv;
+    }
+
+    return largest;
+}
 int getABSLargestValueInAllAxis(ctData data){
     int largest = 0;
     for(int axis=0 ; axis<=2 ; axis+=2){

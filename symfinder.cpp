@@ -41,7 +41,10 @@ int SymbolMatch::findBestMatchedSym(trajData *sample, double *simiList){
     int maxSimIdx = -1;
     for(int idx = 0 ; idx < symAmt ; idx++){
         dualCTData bestMatchResult = compareTwoSymbol(symbols[idx], sample);
-        result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, false);
+
+        result = calcComplexSimilarity(bestMatchResult, symbols[idx], sample, true);
+        //result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, false);
+
         freeDualCT(bestMatchResult);
         simiList[idx] = result;
         if(maxSimilarity <= result){

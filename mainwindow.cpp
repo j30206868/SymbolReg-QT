@@ -74,14 +74,14 @@ Window::Window()
     sampleSelectBox->setCurrentIndex(lastSampleIdx);
 
     //指定用
-    //tempSelectBox->setCurrentIndex(51);
-    //sampleSelectBox->setCurrentIndex(45);
-    //tempChanged();
-    //sampleChanged(false);
+    tempSelectBox->setCurrentIndex(0);
+    sampleSelectBox->setCurrentIndex(17);
+    tempChanged();
+    sampleChanged(false);
 
     //一般用
-    tempChanged();
-    sampleChanged();
+    //tempChanged();
+    //sampleChanged();
 
     penChanged();
     antialiasingCheckBox->setChecked(true);

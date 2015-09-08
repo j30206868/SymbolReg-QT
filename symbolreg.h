@@ -39,6 +39,7 @@ double trajAxisPeriodABSSTD(trajData &data, int axis, double mean, int sP, int e
 ctData sumOfPNTrajWithSign(trajData &data);
 ctData sumOfPNTrajWithContinueTypeV(trajData &data);
 
+int ctDataMergeVNormal(int x, int y);
 int ctDataMergeV(int v1, int v2);
 
 intArray ctDataMergeXZToIntA(ctData data);
@@ -95,6 +96,8 @@ void mergeSimilarType(ctData &data);
 
 //比對
 dualCTData compareTwoSymbol(trajData *temp, trajData *sample);
+
+double calcComplexSimilarity(dualCTData quadrantPair, trajData *temp, trajData *sample, bool printResult);
 
 #endif // SYMBOLREG_H
 

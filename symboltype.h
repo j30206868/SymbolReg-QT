@@ -39,6 +39,7 @@ void freeDualCT(dualCTData dualData);
 ctData getNewCTData(int newLen);
 double* getABSMeanOfCTData(ctData data);
 double* getABSMeanOfCTDataWithNoZero(ctData data, int &largest);
+int getABSLargestValueOfBothAxis(ctData data);
 int getABSLargestValueInAllAxis(ctData data);
 
 //trajData處理

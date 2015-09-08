@@ -556,9 +556,11 @@ void RenderArea::paintEvent(QPaintEvent * /* event */)
             if(usedTemp->length > 0){
                 std::cout << "Final comparision" << std::endl;
                 bestMatchResult = compareTwoSymbol(temp, sample);
-
                 //印出整個對齊結果
-                result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, true);
+                //result = showBestMatchResult(bestMatchResult.A, bestMatchResult.B, true);
+
+                result = calcComplexSimilarity(bestMatchResult, temp, sample, true);
+
                 std::cout << std::endl;
 
                 //更新筆數總數
