@@ -3,6 +3,18 @@
 #include "mousectrl.h"
 #include <iostream>
 #include <QString>
+#include <fstream>
+#include <sstream>
+#include <ctime>
+
+///
+static const char *racketFilePath = "Racket/";
+static std::string date_string = "";
+static const char *type_string = "5";
+static const char *person_string = "wu";
+static std::stringstream fileNameSStream;
+static int racket_file_count = 2;
+///
 
 MpuReader::MpuReader(QObject *parent)
 : QThread(parent)
@@ -10,6 +22,17 @@ MpuReader::MpuReader(QObject *parent)
     stop = true;
     symDirPath = "";
     setNextSymCount(0);
+
+    //get current date
+    time_t t = time(0);   // get time now
+    struct tm * now = localtime( & t );
+    std::stringstream datesstm;
+    if( (now->tm_mon + 1) < 10)
+        datesstm << "0" << (now->tm_mon + 1);
+    else
+        datesstm << (now->tm_mon + 1);
+    datesstm <<  now->tm_mday;
+    date_string = datesstm.str();
 }
 
 MpuReader::~MpuReader()
@@ -17,6 +40,15 @@ MpuReader::~MpuReader()
     stop = true;
     wait();//使執行緒在Stop被改為true時 會等到run那邊的迴圈結束才把執行緒destory掉
            //避免不可預期之錯誤發生
+}
+
+void writeAcclAndGyroAndGravity(const char *fname, int *accl, int *gyro, float *gravity, int isDownKeyPressed){
+    std::ofstream myfile (fname, std::ios::app);
+    myfile << accl[0] << "," << accl[1] << "," << accl[2] << ",";
+    myfile << gyro[0] << "," << gyro[1] << "," << gyro[2] << ",";
+    myfile << gravity[0] << "," << gravity[1] << "," << gravity[2] <<",";
+    myfile << isDownKeyPressed << "\n";
+    myfile.close();
 }
 
 void MpuReader::run()
@@ -72,6 +104,9 @@ void MpuReader::run()
 
     std::cout << "Data should be stable, start to read MPU6050" << std::endl;
 
+    int ctrl_key_state = 0;
+    fileNameSStream << racketFilePath << date_string << "_" << type_string << "_" << person_string << "_" << racket_file_count << ".txt";
+
     while(!stop){
         if(!SP->IsConnected()){
             std::cout << "Failed to read " << COM_NUM << " Mpu6050 reader is off." << std::endl;
@@ -93,52 +128,6 @@ void MpuReader::run()
             continue;//尚未讀到整組完整資料 不處理 繼續讀
 
         //********************************************************//
-        //						操控滑鼠
-        //********************************************************//
-        bool realMove = false;
-        if(mc.state == MOUSECTRL_MSSTATE)
-            realMove = true;
-        bool isMoved = mc.moveCursor(accl, gyro, velocity, AcclZeroC, period, realMove);
-
-        //控制滑鼠左鍵(對應上button)
-        if((buttons[1]==1) && (!isRightMouseBtnDown)){
-            isRightMouseBtnDown = true;
-            printf("Right btn Down!\n");
-            mc.sendMouseInput(MOUSEEVENTF_RIGHTDOWN);
-            //mc.sendMouseInput(MOUSEEVENTF_RIGHTUP);
-        }else if((buttons[1]==0) && (isRightMouseBtnDown)){
-            isRightMouseBtnDown = false;
-            printf("Right btn Up!\n");
-            mc.sendMouseInput(MOUSEEVENTF_RIGHTUP);
-        }
-        //控制滑鼠右鍵(對應下button)
-        if((buttons[0]==1) && (!isLeftMouseBtnDown)){
-            isLeftMouseBtnDown = true;
-            printf("Left btn Down!\n");
-            mc.sendMouseInput(MOUSEEVENTF_LEFTDOWN);
-            //mc.sendMouseInput(MOUSEEVENTF_LEFTUP);
-        }else if((buttons[0]==0) && (isLeftMouseBtnDown)){
-            isLeftMouseBtnDown = false;
-            printf("Left btn Up!\n");
-            mc.sendMouseInput(MOUSEEVENTF_LEFTUP);
-        }
-        //同時click滑鼠左右鍵
-        if(isRightMouseBtnDown && isLeftMouseBtnDown){
-            if(!isLeftAndRightDown){
-                isLeftAndRightDown = true;
-                //mc state toggle
-                if(mc.state == MOUSECTRL_MSSTATE){
-                    mc.state = MOUSECTRL_TRAJPROC;
-                }else{
-                    mc.state = MOUSECTRL_MSSTATE;
-                }
-            }
-        }else{
-            if(isLeftAndRightDown){
-                isLeftAndRightDown = false;
-            }
-        }
-        //********************************************************//
         //				處理加速度計與陀螺儀Raw Data
         //********************************************************//
         //get gravity
@@ -146,6 +135,67 @@ void MpuReader::run()
         //std::cout << "Gyro: " << gyro[0] << "," << gyro[1] << "," << gyro[2] << std::endl;
         //去重力
         removeGravity(accl, gravity);
+
+        double total_q = sqrt(gravity[0]*gravity[0] + gravity[1]*gravity[1] + gravity[2]*gravity[2]);
+
+        SHORT ctrlKeyState = GetAsyncKeyState( VK_CONTROL );
+        SHORT downKeyState = GetAsyncKeyState( VK_DOWN );
+
+        if( ( 1 << 16 ) & ctrlKeyState ){
+            if(ctrl_key_state == 0)
+            {//剛按下去第一筆
+                fileNameSStream.str("");
+                fileNameSStream << racketFilePath << date_string << "_" << type_string << "_" << person_string << "_" << racket_file_count << ".txt";
+                cleanFile(fileNameSStream.str());
+                std::cout << std::endl << std::endl << std::endl << std::endl << std::endl;
+                std::cout << std::endl << std::endl << std::endl << std::endl << std::endl;
+                std::cout << "====> Start New File: " << fileNameSStream.str() << std::endl;
+                std::cout << std::endl << std::endl << std::endl << std::endl << std::endl;
+                std::cout << std::endl << std::endl << std::endl << std::endl << std::endl;
+            }
+
+            ctrl_key_state = 1;
+
+        }else{
+            if(ctrl_key_state == 1)
+            {//剛放開第一筆
+                racket_file_count++;
+            }
+
+            ctrl_key_state = 0;
+        }
+
+
+        //ctrl
+        if( ( 1 << 16 ) & ctrlKeyState )
+        {//按ctrl鍵
+            //std::cout << "quatern: " << quatern[0] << "," << quatern[1] << "," << quatern[2] << "," << quatern[3] << std::endl;
+            std::cout << "accl: " << accl[0] << "," << accl[1] << "," << accl[2] << std::endl;
+            std::cout << "gyro: " << gyro[0] << "," << gyro[1] << "," << gyro[2] << std::endl;
+            std::cout << "gravity: " << gravity[0] << "," << gravity[1] << "," << gravity[2] << std::endl;
+            //std::cout << "total_q: " << total_q << std::endl;
+
+            if( ( 1 << 16 ) & downKeyState ){
+                writeAcclAndGyroAndGravity(fileNameSStream.str().c_str(), accl, gyro, gravity, 1);
+                std::cout << "Down Key State: " << 1 << std::endl;
+            }else{
+                writeAcclAndGyroAndGravity(fileNameSStream.str().c_str(), accl, gyro, gravity, 0);
+                std::cout << "Down Key State: " << 0 << std::endl;
+            }
+        }
+
+        //check if gravity value is invalid
+        if( total_q >= 1.1 ){
+            std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+            std::cout << "total_q: " << total_q << std::endl;
+            std::cout << "Wrong gravity ............................................" << std::endl;
+            std::cout << "quatern: " << quatern[0] << "," << quatern[1] << "," << quatern[2] << "," << quatern[3] << std::endl;
+            std::cout << "gravity: " << gravity[0] << "," << gravity[1] << "," << gravity[2] << std::endl;
+            std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+            system("PAUSE");
+
+        }
+
         //Median Filter(中位值濾波)
         agMedianFilter(Accls, Gyros, accl, gyro, MFCount, MFLen, true, true); //是否做濾波 accl=true gyro=true
 
@@ -159,13 +209,7 @@ void MpuReader::run()
         //buttons[0] = false;
         //buttons[1] = false;
 
-        int toggleFlag = SR.recGyroSymInSeqNum( buttons[0] | buttons[1] , sstm.str(), gyro);
-        if(toggleFlag == SR.SYMREC_TOGGLEDOFF)
-        {//當最新一個完整的符號錄製結束
-            std::cout << "Got New Symbol: " << sstm.str() << std::endl;
-            emit updateNewSymbol();
-            nextSymCount++;
-        }
+        //int toggleFlag = SR.recGyroSymInSeqNum( buttons[0] | buttons[1] , sstm.str(), gyro);
     }
     SP->~Serial();
 
@@ -426,9 +470,9 @@ void QtoGravity(float *quatern, float *gravity){
     gravity[2] = quatern[w] * quatern[w] - quatern[x] * quatern[x] - quatern[y] * quatern[y] + quatern[z] * quatern[z];
 }
 void removeGravity(int *accl, float *gravity){
-    accl[0] = accl[0] - (gravity[0]*16384);
-    accl[1] = accl[1] - (gravity[1]*16384);
-    accl[2] = accl[2] - (gravity[2]*16384);
+    accl[0] = accl[0] - (gravity[0]*2048);
+    accl[1] = accl[1] - (gravity[1]*2048);
+    accl[2] = accl[2] - (gravity[2]*2048);
 }
 int agMedianFilter(int *Accls[3], int *Gyros[3], int *accl, int *gyro, int &MFCount, int MFLen, bool applyToAccl, bool applyToGyro){
     int MFLastIdx = MFLen - 1;
