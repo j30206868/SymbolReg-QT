@@ -54,8 +54,12 @@ bool MouseCtrl::moveCursor(int *accl, int *gyro, double *velocity, int *AcclZero
         velocityGetDisplace(displaceX, displaceZ, accl, velocity, AcclZeroC, isGyroMoved, period, true , true);
 
         //更新滑鼠位移量(velocity + gyro)
-        //updateDxDy(gyroOneTimeDX, gyroOneTimeDY, displaceX, displaceZ);
-        updateDxDy(gyroOneTimeDX, gyroOneTimeDY);
+        if(realMove == true){
+            //updateDxDy(gyroOneTimeDX, gyroOneTimeDY, displaceX, displaceZ, realMove);
+            updateDxDy(gyroOneTimeDX, gyroOneTimeDY, realMove);
+        }else{
+            updateDxDy(gyroOneTimeDX, gyroOneTimeDY, realMove);
+        }
 
         if(realMove){
             cs.moveTo(cs.cX + dx, cs.cY + dy);
@@ -144,7 +148,7 @@ void MouseCtrl::updateVelocity(int *accl, double *velocity, int *zeroC, bool isG
     }
 }
 
-void MouseCtrl::updateDxDy(int GyroOneTimeDx, int GyroOneTimeDy, int VeloOneTimeDx, int VeloOneTimeDy){
+void MouseCtrl::updateDxDy(int GyroOneTimeDx, int GyroOneTimeDy, int VeloOneTimeDx, int VeloOneTimeDy, bool realMove){
     //*******重要*********//
     //若加速度計影響的方向與gyro不同, 則加速度計部分不列入考慮
     if( !isEqualSign(GyroOneTimeDx, VeloOneTimeDx) )
@@ -158,23 +162,31 @@ void MouseCtrl::updateDxDy(int GyroOneTimeDx, int GyroOneTimeDy, int VeloOneTime
 
     int tTmpDx = GyroOneTimeDx + VeloOneTimeDx;
     int tTmpDy = GyroOneTimeDy + VeloOneTimeDy;
-    updateDxDy(tTmpDx, tTmpDy);
+    updateDxDy(tTmpDx, tTmpDy, realMove);
 }
-void MouseCtrl::updateDxDy(int oneTimeDx, int oneTimeDy){
+void MouseCtrl::updateDxDy(int oneTimeDx, int oneTimeDy, bool realMove){
     int tmpDx = dx + oneTimeDx;
     int tmpDy = dy + oneTimeDy;
     //if is moving out of the screen, don't update
-    //if(tmpDx < cs.cX){
-    //	if(tmpDx > (-cs.cX) ){
-            dx = tmpDx;
-    //	}
-    //}
 
-    //if(tmpDy < cs.cY){
-    //	if(tmpDy > (-cs.cY) ){ //
-            dy = tmpDy;
-    //	}
-    //}
+    if(realMove == true){
+        //必須限定在邊界內
+        if(tmpDx < cs.cX){
+            if(tmpDx > (-cs.cX) ){
+                dx = tmpDx;
+            }
+        }
+
+        if(tmpDy < cs.cY){
+            if(tmpDy > (-cs.cY) ){ //
+                dy = tmpDy;
+            }
+        }
+    }else
+    {//只是假移 移到哪都沒差
+        dx = tmpDx;
+        dy = tmpDy;
+    }
 }
 
 bool MouseCtrl::gyroMoveFilter(int *gyro, int threshold){
@@ -307,7 +319,7 @@ void MouseCtrl::moveOnlyWithGyro(int *gyro, int time){
         int gyroOneTimeDX = 0 - ceil(xdegree * 200);
         int gyroOneTimeDY = 0 - ceil(ydegree * 200);
 
-        updateDxDy(gyroOneTimeDX, gyroOneTimeDY);
+        updateDxDy(gyroOneTimeDX, gyroOneTimeDY, true);
 
         cs.moveTo(cs.cX + dx, cs.cY + dy);
     }

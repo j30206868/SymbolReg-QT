@@ -1507,7 +1507,7 @@ dualCTData compareTwoSymbol(trajData *temp, trajData *sample){
     subSampleEigen(eigenPair.A, 0.1);
     subSampleEigen(eigenPair.B, 0.1 * power);
 
-    cout << "power: " << power << endl;
+    //cout << "power: " << power << endl;
 
     //std::cout << QObject::tr("Temp是Sample的 ").toLocal8Bit().data() << power;
     //std::cout << QObject::tr(" 倍大").toLocal8Bit().data() << std::endl;
@@ -1523,7 +1523,7 @@ double calcContinuousSimilarity(int tLen, int sLen){
 }
 double getDistanceWeight(ctData data, int eX, int eY){
     int largestV = getABSLargestValueOfBothAxis(data);
-    cout<<"largestV: "<<largestV<<endl;
+    //cout<<"largestV: "<<largestV<<endl;
     return (abs(eX)+abs(eY)) / (double)largestV;
 }
 int getStartAndEndPosition(ctData temp, int &x2, int &y2){

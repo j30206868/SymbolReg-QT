@@ -42,8 +42,8 @@ class MouseCtrl
         bool gyroMoveFilter(int *gyro, int threshold);
 
         //更新滑鼠座標
-        void updateDxDy(int GyroOneTimeDx, int GyroOneTimeDy, int VeloOneTimeDx, int VeloOneTimeDy);
-        void updateDxDy(int oneTimeDx, int oneTimeDy);
+        void updateDxDy(int GyroOneTimeDx, int GyroOneTimeDy, int VeloOneTimeDx, int VeloOneTimeDy, bool realMove);
+        void updateDxDy(int oneTimeDx, int oneTimeDy, bool realMove);
         void posReset();
 
         //滑鼠按鍵點擊

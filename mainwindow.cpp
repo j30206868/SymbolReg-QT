@@ -74,14 +74,14 @@ Window::Window()
     sampleSelectBox->setCurrentIndex(lastSampleIdx);
 
     //指定用
-    tempSelectBox->setCurrentIndex(0);
-    sampleSelectBox->setCurrentIndex(17);
-    tempChanged();
-    sampleChanged(false);
+    //tempSelectBox->setCurrentIndex(0);
+    //sampleSelectBox->setCurrentIndex(17);
+    //tempChanged();
+    //sampleChanged(false);
 
     //一般用
-    //tempChanged();
-    //sampleChanged();
+    tempChanged();
+    sampleChanged();
 
     penChanged();
     antialiasingCheckBox->setChecked(true);
@@ -130,7 +130,7 @@ void         Window::createMyUi(){
     renderArea->setLastStrokeSpinBox(strokeSpinBox);
 
     readDataBtn   = new QPushButton(tr("讀取MPU6050數據"), this);
-    makeNewSymBtn = new QPushButton(tr("產生新符號"), this);
+    makeNewSymBtn = new QPushButton(tr("開始操控滑鼠"), this);
 
 
 }

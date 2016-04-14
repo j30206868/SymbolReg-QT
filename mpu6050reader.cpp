@@ -1,5 +1,6 @@
 #include "mpu6050reader.h"
 #include "symrecorder.h"
+#include "mousectrl.h"
 #include <iostream>
 #include <QString>
 
@@ -50,6 +51,14 @@ void MpuReader::run()
     //Symbol record
     SymbolRecorder SR = SymbolRecorder();
 
+    //滑鼠控制
+    MouseCtrl mc = MouseCtrl();
+    double velocity[3] = {0, 0, 0};
+    int AcclZeroC[3] = {0, 0, 0};
+    bool isLeftMouseBtnDown = false;
+    bool isRightMouseBtnDown = false;
+    bool isLeftAndRightDown = false;
+
     //********************************************************//
     //					連接Com port並確認連線
     //********************************************************//
@@ -84,6 +93,52 @@ void MpuReader::run()
             continue;//尚未讀到整組完整資料 不處理 繼續讀
 
         //********************************************************//
+        //						操控滑鼠
+        //********************************************************//
+        bool realMove = false;
+        if(mc.state == MOUSECTRL_MSSTATE)
+            realMove = true;
+        bool isMoved = mc.moveCursor(accl, gyro, velocity, AcclZeroC, period, realMove);
+
+        //控制滑鼠左鍵(對應上button)
+        if((buttons[1]==1) && (!isRightMouseBtnDown)){
+            isRightMouseBtnDown = true;
+            printf("Right btn Down!\n");
+            mc.sendMouseInput(MOUSEEVENTF_RIGHTDOWN);
+            //mc.sendMouseInput(MOUSEEVENTF_RIGHTUP);
+        }else if((buttons[1]==0) && (isRightMouseBtnDown)){
+            isRightMouseBtnDown = false;
+            printf("Right btn Up!\n");
+            mc.sendMouseInput(MOUSEEVENTF_RIGHTUP);
+        }
+        //控制滑鼠右鍵(對應下button)
+        if((buttons[0]==1) && (!isLeftMouseBtnDown)){
+            isLeftMouseBtnDown = true;
+            printf("Left btn Down!\n");
+            mc.sendMouseInput(MOUSEEVENTF_LEFTDOWN);
+            //mc.sendMouseInput(MOUSEEVENTF_LEFTUP);
+        }else if((buttons[0]==0) && (isLeftMouseBtnDown)){
+            isLeftMouseBtnDown = false;
+            printf("Left btn Up!\n");
+            mc.sendMouseInput(MOUSEEVENTF_LEFTUP);
+        }
+        //同時click滑鼠左右鍵
+        if(isRightMouseBtnDown && isLeftMouseBtnDown){
+            if(!isLeftAndRightDown){
+                isLeftAndRightDown = true;
+                //mc state toggle
+                if(mc.state == MOUSECTRL_MSSTATE){
+                    mc.state = MOUSECTRL_TRAJPROC;
+                }else{
+                    mc.state = MOUSECTRL_MSSTATE;
+                }
+            }
+        }else{
+            if(isLeftAndRightDown){
+                isLeftAndRightDown = false;
+            }
+        }
+        //********************************************************//
         //				處理加速度計與陀螺儀Raw Data
         //********************************************************//
         //get gravity
@@ -100,6 +155,10 @@ void MpuReader::run()
         //單純紀錄Gyro的raw data(當然因為前面有中位值濾波 所以不是完全的raw data)
         std::stringstream sstm;
         sstm << symDirPath.toStdString() << nextSymCount << ".txt";
+
+        //buttons[0] = false;
+        //buttons[1] = false;
+
         int toggleFlag = SR.recGyroSymInSeqNum( buttons[0] | buttons[1] , sstm.str(), gyro);
         if(toggleFlag == SR.SYMREC_TOGGLEDOFF)
         {//當最新一個完整的符號錄製結束
